@@ -1,0 +1,1 @@
+docker build -t tlwtlw/sjb-v1:0.0.1 .
