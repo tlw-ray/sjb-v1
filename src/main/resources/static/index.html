@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>xSKR-石头剪刀布!</title>
+    <link href="/webjars/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/main.css" rel="stylesheet">
+    <script src="/webjars/jquery/jquery.min.js"></script>
+    <script src="/webjars/sockjs-client/sockjs.min.js"></script>
+    <script src="/webjars/stomp-websocket/stomp.min.js"></script>
+    <script src="index.js"></script>
+</head>
+<body>
+<noscript><h2 style="color: #ff0000">浏览器不支持JavaScript请开启。</h2></noscript>
+<div id="main-content" class="container">
+    <div class="row">
+        <button id="stone" class="btn btn-default" type="submit">石头</button>
+        <button id="scissors" class="btn btn-default" type="submit">剪刀</button>
+        <button id="cloth" class="btn btn-default" type="submit">布</button>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <table id="conversation" class="table table-striped">
+                <thead>
+                <tr>
+                    <th>消息: </th>
+                </tr>
+                </thead>
+                <tbody id="messages">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>
