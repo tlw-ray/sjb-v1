@@ -9,7 +9,7 @@ import java.util.*;
 public class Engine {
 
     private Logger logger =LoggerFactory.getLogger(getClass());
-    private static Map<String, String> playerFingerMap = new HashMap();
+    private static Map<String, String> playerFingerMap = new TreeMap();
 
     public String enter = "\n";
 
