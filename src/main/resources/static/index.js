@@ -8,7 +8,17 @@ stompClient.onerror = function(e){console.log(e)}
 stompClient.connect({}, function (frame) {
     console.log('Connected: ' + frame);
     stompClient.subscribe(topicURL, function (message) {
-        showMessages(message.body);
+        console.log(message.body)
+        var playerDataPack = JSON.parse(message.body)
+        var report = "";
+        for(var playerName in playerDataPack){
+            var dataPack = playerDataPack[playerName]
+            console.log(playerName + ": " + playerDataPack[playerName])
+            var finger = dataPack["finger"];
+            var ends = dataPack["ends"];
+            report += (playerName + ", " + finger + ", " + ends + "<br>")
+        }
+        showMessages(report);
     });
 });
 
@@ -16,7 +26,6 @@ function disconnect() {
     if (stompClient !== null) {
         stompClient.disconnect();
     }
-    setConnected(false);
     console.log("Disconnected");
 }
 
@@ -25,9 +34,9 @@ function showMessages(message) {
 }
 
 $(function () {
-    $( "#stone" ).click(function() { stompClient.send(targetURL, {}, "s")});
-    $( "#scissors" ).click(function() { stompClient.send(targetURL, {}, "j") });
-    $( "#cloth" ).click(function() { stompClient.send(targetURL, {}, "b") });
+    $( "#stone" ).click(function() { stompClient.send(targetURL, {}, "ROCK")});
+    $( "#scissors" ).click(function() { stompClient.send(targetURL, {}, "SCISSORS") });
+    $( "#cloth" ).click(function() { stompClient.send(targetURL, {}, "PAPER") });
 });
 
 
