@@ -96,10 +96,6 @@ public class Engine {
 
                     //记录本局分数
                     DataPack dataPack = playerDataPack.get(playerName);
-//                    if(dataPack == null){
-//                        dataPack = new DataPack();
-//                        playerDataPack.put(playerName, dataPack);
-//                    }
                     dataPack.setEnds(ends);
                     dataPack.setFinger(finger);
                     logger.debug("player: {}, finger: {}, ends: {}", playerName, finger, ends);

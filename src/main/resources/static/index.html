@@ -8,7 +8,7 @@
 </head>
 <body>
 <noscript><h2 style="color: #ff0000">浏览器不支持JavaScript请开启。</h2></noscript>
-<div id="main-content" class="container">
+<div id="main-content" class="container col-md-6 col-lg-6 col-sm-6">
     <div class="row">
         <button id="stone" class="btn btn-default" type="submit">石头</button>
         <button id="scissors" class="btn btn-default" type="submit">剪刀</button>
@@ -28,6 +28,31 @@
             </table>
         </div>
     </div>
+</div>
+<div id="history" class="container col-md-6 col-lg-6 col-sm-6">
+    <table id="history_table" class="table table-striped text-center">
+        <thead>
+            <tr>
+                <th colspan="9">历史统计:</th>
+            </tr>
+            <tr>
+                <th rowspan="2">玩家</th>
+                <th colspan="3">猜拳</th>
+                <th colspan="4">输赢</th>
+            </tr>
+            <tr>
+                <th>石头</th>
+                <th>剪刀</th>
+                <th>布</th>
+                <th>胜</th>
+                <th>平</th>
+                <th>负</th>
+                <th>弃</th>
+            </tr>
+        </thead>
+        <tbody id="history_tbody">
+        </tbody>
+    </table>
 </div>
 <script src="/webjars/jquery/jquery.min.js"></script>
 <script src="/webjars/sockjs-client/sockjs.min.js"></script>
