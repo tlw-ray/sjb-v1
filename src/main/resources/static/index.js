@@ -10,13 +10,10 @@ stompClient.connect({}, function (frame) {
     stompClient.subscribe(topicURL, function (message) {
         console.log(message.body)
         var playerDataPacks = JSON.parse(message.body)
-        // var report = "";
-        // for(var playerName in playerDataPacks){
-        //
-        // }
-        // showMessages(report);
         showHistory(playerDataPacks)
     });
+    $("#playerCountSpan").html("2")
+    $("#playersTH").html("tlw, yl")
 });
 
 function disconnect() {
@@ -24,10 +21,6 @@ function disconnect() {
         stompClient.disconnect();
     }
     console.log("Disconnected");
-}
-
-function showMessages(message) {
-    $("#messages").append("<tr><td>" + message + "</td></tr>")
 }
 
 function showHistory(playerDataPacks){
@@ -52,7 +45,7 @@ function showHistory(playerDataPacks){
         history += dataPack["endsCount"]["DEFEAT"]
         history += "</td><td>"
         history += dataPack["endsCount"]["GIVE_UP"]
-        history += "</td></tr>
+        history += "</td></tr>"
         console.log(playerName + ": " + dataPack)
         var finger = dataPack["finger"]
         var ends = dataPack["ends"]
@@ -70,6 +63,7 @@ $(function () {
     $( "#stone" ).click(function() { stompClient.send(targetURL, {}, "ROCK")});
     $( "#scissors" ).click(function() { stompClient.send(targetURL, {}, "SCISSORS") });
     $( "#cloth" ).click(function() { stompClient.send(targetURL, {}, "PAPER") });
+    $( "#clear" ).click(function() {$("#messages").html("")})
 });
 
 

@@ -13,7 +13,7 @@
         <button id="stone" class="btn btn-default" type="submit">石头</button>
         <button id="scissors" class="btn btn-default" type="submit">剪刀</button>
         <button id="cloth" class="btn btn-default" type="submit">布</button>
-        <button id="hello" class="btn btn-default" type="submit">hello</button>
+        <button id="clear" class="btn btn-default" type="submit">清除</button>
     </div>
     <div class="row">
         <div class="col-md-12">
@@ -30,7 +30,15 @@
     </div>
 </div>
 <div id="history" class="container col-md-6 col-lg-6 col-sm-6">
-    <table id="history_table" class="table table-striped text-center">
+    <table id="zoom_table" class="table table-striped">
+        <thead>
+            <tr>
+                <th>玩家数量: <span id="playerCountSpan"></span></th>
+                <th id="playersTH"></th>
+            </tr>
+        </thead>
+    </table>
+    <table id="history_table" class="table table-striped">
         <thead>
             <tr>
                 <th colspan="9">历史统计:</th>
