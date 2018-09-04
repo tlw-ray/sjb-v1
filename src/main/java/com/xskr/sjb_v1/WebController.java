@@ -8,9 +8,12 @@ import com.xskr.sjb_v1.model.Finger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.annotation.SubscribeMapping;
+import org.springframework.messaging.simp.stomp.StompSessionHandler;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
 
@@ -39,6 +42,13 @@ public class WebController {
         logger.debug(playerName + ":" + command);
         engine.action(playerName, finger);
     }
+
+    @EventListener
+    public void onLogin(SimpMessagingTemplate simpMessagingTemplate){
+        System.out.println("------------00000");
+        System.out.println(simpMessagingTemplate);
+    }
+
 
     @Scheduled(fixedRate = 5000)
     public void stat() throws JsonProcessingException {
