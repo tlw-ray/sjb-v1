@@ -7,6 +7,8 @@ public class Player implements Comparable<Player>{
 	private int id;
 	private String name;
 	private Card card;
+	private ShowCard showCard;          //展示给强盗孤狼玩家看的卡牌
+	private Card swapCard;
 	private int seat;
 	private boolean ready;
 	private Action action;
@@ -28,8 +30,25 @@ public class Player implements Comparable<Player>{
 	public Card getCard() {
 		return card;
 	}
+
 	public void setCard(Card card) {
 		this.card = card;
+	}
+
+    public ShowCard getShowCard() {
+        return showCard;
+    }
+
+    public void setShowCard(ShowCard showCard) {
+        this.showCard = showCard;
+    }
+
+    public Card getSwapCard() {
+		return swapCard;
+	}
+
+	public void setSwapCard(Card swapCard) {
+		this.swapCard = swapCard;
 	}
 
 	public boolean isReady() {
