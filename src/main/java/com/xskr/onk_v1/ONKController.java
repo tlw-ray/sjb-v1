@@ -14,8 +14,6 @@ import java.util.List;
 @RestController
 public class ONKController {
 
-    ONK_Engine engine = new ONK_Engine();
-
     //接收房间定义的玩家角色参数
     @RequestMapping(path = "/room", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public String createRoom(@RequestParam String characters){
@@ -26,7 +24,6 @@ public class ONKController {
             Card card = Card.valueOf(characterName);
             cards.add(card);
         }
-        engine.init(cards);
         return "success";
     }
 
