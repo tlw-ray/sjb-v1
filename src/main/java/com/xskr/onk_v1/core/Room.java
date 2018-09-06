@@ -1,7 +1,6 @@
 package com.xskr.onk_v1.core;
 
 import com.alibaba.fastjson.JSON;
-import com.xskr.onk_v1.core.action.Action;
 
 import java.util.*;
 
@@ -18,20 +17,31 @@ public class Room {
     private Card[] tableDeck = new Card[TABLE_DECK_THICKNESS];
 
 
+    // 玩家姓名到玩家的索引
+    private Map<String, Player> namePlayerMap;
     // 发牌后卡牌到玩家索引
     private Map<Card, Player> cardPlayerMap;
     // 玩家就坐后座位号到玩家索引
     private Map<Integer, Player> seatPlayerMap;
 
+    // 玩家夜间操作
+    private Integer singleWolfCheckDeck;
+    private Integer seerCheckDeck1;
+    private Integer seerCheckDeck2;
+    private Integer seerCheckPlayer;
+    private Integer robberSnatchSeat;
+    private Integer troublemakerExchangeSeat1;
+    private Integer troublemakerExchangeSeat2;
+    private Integer drunkCheckDeck;
 
     public Room(List<Card> cardList){
         cards = cardList.toArray(new Card[0]);
         int seatCount = getSeatCount();
-        players = new HashSet(seatCount);
+        players = new TreeSet();
 
         seatPlayerMap = new HashMap(seatCount);
         cardPlayerMap = new HashMap(seatCount);
-
+        namePlayerMap = new HashMap(seatCount);
     }
 
     public int getSeatCount(){
@@ -40,41 +50,43 @@ public class Room {
 
     /**
      * 玩家进入房间
-     * @param player
+     * @param playerName
      * @return True 进入房间成功， False 房间已满进入失败
      */
-    public boolean in(Player player){
-        if(players.contains(player)){
+    public void join(String playerName){
+        Player player = namePlayerMap.get(playerName);
+        if(player == null){
             //玩家已经在该房间
-            return true;
         }else{
+            player = new Player(playerName);
             //玩家进入该房间
             if(players.size() < getSeatCount()){
                 //房间未满
                 players.add(player);
-                return true;
             }else{
-                return false;
+                throw new RuntimeException("房间已满");
             }
         }
     }
 
     /**
      * 玩家离开房间
-     * @param player
+     * @param playerName
      */
-    public void out(Player player){
+    public void leave(String playerName){
+        Player player = namePlayerMap.get(playerName);
         players.remove(player);
-        //TODO 是否需要清理索引
+        //TODO 需要清理索引,用户在游戏进行时离开会导致游戏无法继续
     }
 
     /**
      * 玩家坐到指定位置
-     * @param player 玩家
+     * @param userName 玩家
      * @param seatNumber 座位
      * @return true 成功 false 该位置已经有人无法坐下
      */
-    public boolean sit(Player player, int seatNumber){
+    public boolean ready(String userName, int seatNumber){
+        Player player = namePlayerMap.get(userName);
         if(seatPlayerMap.keySet().contains(seatNumber)){
             return false;
         }else{
@@ -88,13 +100,29 @@ public class Room {
     /**
      * 初始化一局游戏
      */
-    public void initializeGame(){
+    public void newGame(){
 
         Deck deck = new Deck(cards);
 
         //检查玩家数量与预期数量一致
         if(players.size() != getSeatCount()){
             throw new RuntimeException(String.format("玩家数量%s与座位数量%s不符!!", players.size(), getSeatCount()));
+        }
+
+        //清空上一局所有角色的操作状态
+        singleWolfCheckDeck = null;
+        seerCheckDeck1 = null;
+        seerCheckDeck2 = null;
+        seerCheckPlayer = null;
+        robberSnatchSeat = null;
+        troublemakerExchangeSeat1 = null;
+        troublemakerExchangeSeat2 = null;
+        drunkCheckDeck = null;
+        //清空上一局所有玩家的身份与投票状态
+        for(Player player:players){
+            player.setCard(null);
+            player.setVoteSeat(null);
+            player.setVotedCount(0);
         }
 
         //检查玩家是否都已经就坐, 座位号是否符合逻辑
@@ -118,7 +146,6 @@ public class Room {
         for(Player player:players){
             Card card = deck.deal();
             player.setCard(card);
-            player.setSwapCard(card);
             cardPlayerMap.put(card, player);
         }
 
@@ -132,133 +159,44 @@ public class Room {
      * 发牌结束后根据身份为每个玩家发送行动提示信息
      * @return
      */
-    public void getPlayerActionMessage(){
-        Map<Player, String> playerActionMessageMap = new HashMap();
-        Player wolf2 = cardPlayerMap.get(Card.WEREWOLF_1);
-        Player wolf1 = cardPlayerMap.get(Card.WEREWOLF_2);
+    public void afterDealCard(){
+        //需要主动行动的玩家
+        Player seer = cardPlayerMap.get(Card.SEER);
+        Player robber = cardPlayerMap.get(Card.ROBBER);
+        Player troublemaker = cardPlayerMap.get(Card.TROUBLE_MAKER);
+        Player drunk = cardPlayerMap.get(Card.DRUNK);
+
+        String greet = "你好，您的初始身份是%s。";
+        String playerSeatRange = "1--" + players.size();
         for(Map.Entry<Card, Player> entry:cardPlayerMap.entrySet()){
-            Card card = entry.getKey();
             Player player = entry.getValue();
-            String message = String.format("你好，您的初始身份是%s", player.getCard());
-//            switch(card){
-//                case DOPPELGANGER:
-//                    message = "化身幽灵你好，这个身份太复杂了，暂时没有支持。玩下去一定会bug的，赶紧换身份吧。";
-//                case WEREWOLF_1:
-//                    message = wolf2 != null?
-//                            "狼人你好，场面上是双狼！你的同伙是" + cardPlayerMap.get(Card.WEREWOLF_2).getSeat() + "号玩家.":
-//                            "孤狼你好，请选择你要查看的桌面牌垛中的一张牌(1,2,3)"
-//                    ;break;
-//                case WEREWOLF_2:
-//                    message = wolf1 != null ?
-//                            "狼人你好，场面上是双狼！你的同伙是" + cardPlayerMap.get(Card.WEREWOLF_1).getSeat() + "号玩家.":
-//                            "孤狼你好，请选择你要查看的桌面牌垛中的一张牌(1,2,3)"
-//                    ;break;
-//                case MINION:
-//                    if(wolf1 != null && wolf2 != null){
-//                        message = String.format("爪牙你好，你看到场上%s号玩家和%s号玩家是双狼。", wolf1.getSeat(), wolf2.getSeat());
-//                    }else if(wolf1 != null){
-//                        message = String.format("爪牙你好，场上狼主子只有一位是%s号玩家，请千万伺候好它。", wolf1.getSeat());
-//                    }else if(wolf2 != null){
-//                        message = String.format("爪牙你好，场上狼主子只有一位是%s号玩家，请千万伺候好它。", wolf2.getSeat());
-//                    }else{
-//                        message = "爪牙你好，场上好像没有狼，请多保重。";
-//                    }
-//                case MASON_1:
-//                    Player mason2 = cardPlayerMap.get(Card.MASON_2);
-//                    if(mason2 == null){
-//                        message = "孤独的守夜人你好，场上看起来只有你自己。";
-//                    }else{
-//                        message = String.format("守夜人你好，你的同伙是%s号玩家", mason2.getSeat());
-//                    }
-//                case MASON_2:
-//                    Player mason1 = cardPlayerMap.get(Card.MASON_1);
-//                    if(mason1 == null){
-//                        message = "孤独的守夜人你好，场上看起来只有你自己。";
-//                    }else{
-//                        message = String.format("守夜人你好，你的同伙是%s号玩家", mason1.getSeat());
-//                    }
-//                case SEER:
-//                    message = "预言家你好，请选择一个座位号以确认某位玩家的身份；或者出示1-3中两个数字查看桌面牌垛中的两张牌。";
-//                case ROBBER:
-//                    message = "强盗你好，请选择一个座位号，与他交换身份。";
-//                case TROUBLE_MAKER:
-//                    message = "捣蛋鬼你好，请选择除你(%s)之外的两个座位号，交换他们的身份。";
-//                case DRUNK:
-//                    message = "酒鬼你好，一会你将会从桌面牌垛中获取新的身份，而你自己也不知道自己的新身份。";
-//                case INSOMNIAC:
-//                    message = "失眠者你好，所有行动结束后你将会能够查看自己的身份是否有被换过。";
-//                case HUNTER:
-//                    message = "猎人你好，暂时不支持这个身份，玩下去一定会bug的，赶紧重开吧!!!";
-//                case TANNER:
-//                    message = "皮匠，嘘~~只有让他们投死你，才能赢！";
-//            }
-//            //TODO send message to player
-
-        }
-    }
-
-    //处理玩家夜间行动
-    public void action(Player player, Action action){
-        player.setAction(action);
-        for(Player player1 : players){
-            if(player1.getAction() == null){
-                return;
+            if(player != null) {
+                String message;
+                if (player == seer) {
+                    message = String.format("请输入要查看的牌垛中纸牌1-3中的两个号码，或者输入所有玩家(%s)的座位号之一，逗号分隔。", 1, playerSeatRange);
+                }else if(player == robber){
+                    message = String.format("请输入所有玩家(%s)的座位号之一，查看并交换该身份。");
+                }else if(player == troublemaker){
+                    message = String.format("请输入除您(%s)之外两个玩家(%s)的座位号，交换他们的身份。", player.getSeat(), playerSeatRange);
+                }else if(player == drunk){
+                    message = String.format("请输入牌垛中三张纸牌1-3中的一个号码，与之交换身份卡。");
+                }else{
+                    message = "所有玩家行动完成后，系统会给出关于您身份的进一步提示信息。";
+                }
+                //向玩家发送提示信息
+                sendMessage(player, String.format(greet, player));
+                sendMessage(player, message);
             }
         }
-
-        //所有的Player都已制定了行动，触发行动
-        for(Player player2:players){
-            player2.getAction().perform(player2, this);
-        }
-
-        //发布天亮后的消息
-        for(Player player3:players){
-
-        }
     }
 
-    private Integer singleWolfCheckDeck;
-    private Integer seerCheckDeck1;
-    private Integer seerCheckDeck2;
-    private Integer seerCheckPlayer;
-    private Integer robberSnatchSeat;
-    private Integer troubleMakerExchangeSeat1;
-    private Integer troubleMakerExchangeSeat2;
-    private Integer drunkCheckDeck;
-
-    //捣蛋鬼换牌
-    private void exchangeCard(int seat1, int seat2){
-        troubleMakerExchangeSeat1 = seat1;
-        troubleMakerExchangeSeat2 = seat2;
-    }
-
-    //强盗换牌
-    private void snatchCard(int seat){
-        robberSnatchSeat = seat;
-    }
-
-    //狼人验牌
-    private void wolfCheckDeck(int dack){
-        singleWolfCheckDeck = dack;
-    }
-
-    //预言家验牌
-    private void seerCheckDeck(int dack1, int dack2){
-        seerCheckDeck1 = dack1;
-        seerCheckDeck2 = dack2;
-    }
-
-    //预言家验人
-    private void seerCheckPlayer(int seat){
-        seerCheckPlayer = seat;
-    }
-
-    private boolean ready(){
+    //是否能够进入白天，当所有需要操作的玩家行动完毕才能进入白天
+    private boolean canBright(){
         //检查捣蛋鬼是否已经行动
         if(cardPlayerMap.get(Card.TROUBLE_MAKER) != null){
             //如果存在捣蛋鬼玩家
-            if(troubleMakerExchangeSeat1 == null
-                    || troubleMakerExchangeSeat2 == null){
+            if(troublemakerExchangeSeat1 == null
+                    || troublemakerExchangeSeat2 == null){
                 //如果捣蛋鬼没有指定要交换的位置
                 return false;
             }
@@ -295,6 +233,7 @@ public class Room {
         return true;
     }
 
+    //获得孤狼玩家
     private Player getSingleWolf(){
         Player wolf1 = cardPlayerMap.get(Card.WEREWOLF_1);
         Player wolf2 = cardPlayerMap.get(Card.WEREWOLF_2);
@@ -307,23 +246,12 @@ public class Room {
         }
     }
 
-    private ShowCard singleWolfCheckDeckCard;
-    private ShowCard seerCheckDeckCard1;
-    private ShowCard seerCheckDeckCard2;
-    private ShowCard seerCheckPlayerCard;
-    private ShowCard robberSnatchCard;
-
-    //所有玩家均已行动完毕，处理所有流程并发布最新的信息
-    public void exchangeActionPerform(){
-//        DOPPELGANGER,
-//        WEREWOLF_1, WEREWOLF_2, MINION,
-//        MASON_1, MASON_2,
-//        SEER, ROBBER, TROUBLE_MAKER,
-//        DRUNK, INSOMNIAC,
-//        VILLAGER_1, VILLAGER_2, VILLAGER_3,
-//        HUNTER, TANNER;
-
+    //夜间行动: 所有玩家均已声明行动完毕，开始真正处理玩家们的行动，处理所有流程并发布最新的信息
+    public void nightAction(){
+//        Player doopelganger = cardPlayerMap.get(Card.DOPPELGANGER);
         Player singleWolf = getSingleWolf();
+        Player wolf1 = cardPlayerMap.get(Card.WEREWOLF_1);
+        Player wolf2 = cardPlayerMap.get(Card.WEREWOLF_2);
         Player minion = cardPlayerMap.get(Card.MINION);
         Player meson1 = cardPlayerMap.get(Card.MASON_1);
         Player meson2 = cardPlayerMap.get(Card.MASON_2);
@@ -332,48 +260,254 @@ public class Room {
         Player troublemaker = cardPlayerMap.get(Card.TROUBLE_MAKER);
         Player drunk = cardPlayerMap.get(Card.DRUNK);
         Player insomniac = cardPlayerMap.get(Card.INSOMNIAC);
-        Player hunter = cardPlayerMap.get(Card.HUNTER);
-        Player tanner = cardPlayerMap.get(Card.TANNER);
+//        Player hunter = cardPlayerMap.get(Card.HUNTER);
+//        Player tanner = cardPlayerMap.get(Card.TANNER);
 
+        //狼的回合
         if(singleWolf != null){
-            ShowCard showCard = new ShowCard(ShowCardType.DECK, singleWolfCheckDeck, tableDeck[singleWolfCheckDeck]);
+            //场面上是一头孤狼
             sendMessage(singleWolf, String.format("你看到桌面牌垛中第%s张牌是: %s", singleWolfCheckDeck, tableDeck[singleWolfCheckDeck].toString()));
-        }else if(minion != null){
-            if(singleWolf != null){
-
-            }
+        }else if(wolf1 != null && wolf2 != null){
+            //有两个狼玩家
+            String messageTemplate = "你看到%s号玩家看向你，露出了狡黠的目光。对了他就是你的狼人伙伴，在此同时他也看到了你。";
+            sendMessage(wolf1, String.format(messageTemplate, wolf2));
+            sendMessage(wolf2, String.format(messageTemplate, wolf1));
+        }else if(wolf1 == null && wolf2 == null){
+            //场面上没有狼，不需要给任何狼发消息
         }
+
+        // 爪牙的回合
+        if(minion != null){
+            String message;
+            if(wolf1 != null && wolf2 != null){
+                //双狼
+                message = String.format("哇竟然有两个狼主子，你看到了%s和%s号玩家举起了手。", wolf1, wolf2);
+            }else if(singleWolf != null){
+                //孤狼
+                message = String.format("看到了一头孤狼，%s号玩家确实是你心仪已久的主子。", singleWolf);
+            }else{
+                //无狼
+                message = "天哪，竟然一条狼也没有。";
+            }
+            sendMessage(minion, message);
+        }
+
+        // 守夜人的回合
+        if(meson1 == null && meson2 != null){
+            //单守夜
+            sendMessage(meson2, "发现竟然只有自己站在漆黑的夜里。");
+        }else if(meson1 != null && meson2 == null){
+            sendMessage(meson1, "发现竟然只有自己站在漆黑的夜里。");
+        }else if(meson1 != null && meson2 != null){
+            //双守夜
+            String messageTemplate = "看到另一位守夜人，%s号玩家正目光炯炯有神的望着你。";
+            sendMessage(meson1, String.format(messageTemplate, meson2));
+            sendMessage(meson2, String.format(messageTemplate, meson1));
+        }else{
+            //无守夜
+        }
+
+        //预言家回合
+        if(seer != null){
+            //查看一位玩家
+            String message = "";
+            if(seerCheckPlayer != null){
+                Player player = seatPlayerMap.get(seerCheckPlayer);
+                message = String.format("你小心翼翼的翻开了%s号玩家的身份，看到他的真实身份是: %s", seerCheckPlayer, player.getCard());
+            }else{
+                Card card1 = tableDeck[seerCheckDeck1];
+                Card card2 = tableDeck[seerCheckDeck2];
+                message = String.format("翻开桌上第%s和%s张卡牌，你看到了身份卡%s和%s安静的躺在那里", seerCheckDeck1, seerCheckDeck2, card1, card2);
+            }
+            sendMessage(seer, message);
+        }
+
         if(robber != null){
             Player player = seatPlayerMap.get(robberSnatchSeat);
-            player.setSwapCard(Card.ROBBER);
-            robber.setSwapCard(player.getCard());
-            //给强盗出示的他抢到的卡牌
-            ShowCard showCard = new ShowCard(ShowCardType.PLAYER, player.getSeat(), player.getCard());
-            robber.setShowCard(showCard);
+            Card swapCard = player.getCard();
+            player.setCard(robber.getCard());
+            robber.setCard(swapCard);
+            String message = String.format("你粗暴的抢夺了%s号玩家的身份牌，并将自己的身份塞给了他，冷静下来看到上面赫然写着%s。", robberSnatchSeat, swapCard);
+            sendMessage(robber, message);
         }
         if(troublemaker != null){
-            Player player1 = seatPlayerMap.get(troubleMakerExchangeSeat1);
-            Player player2 = seatPlayerMap.get(troubleMakerExchangeSeat2);
-            player1.setSwapCard(player2.getCard());
-            player2.setSwapCard(player1.getCard());
+            Player player1 = seatPlayerMap.get(troublemakerExchangeSeat1);
+            Player player2 = seatPlayerMap.get(troublemakerExchangeSeat2);
+            Card swapCard = player1.getCard();
+            player1.setCard(player2.getCard());
+            player2.setCard(swapCard);
+            String message = String.format("你成功交换了%s和%s玩家的身份牌，他们发现了一定会暴跳如雷，嘿嘿嘿。", player1, player2);
+            sendMessage(troublemaker, message);
         }
         if(drunk != null){
             Card swapCard = tableDeck[drunkCheckDeck];
             tableDeck[drunkCheckDeck] = drunk.getCard();
-            drunk.setSwapCard(swapCard);
+            drunk.setCard(swapCard);
+            String message = String.format("喝的醉醺醺的你随手把身份卡插入牌垛里的第%s张，并把它原有的那张抽了出来带在身上，还没来得及看就呼呼睡着了。");
+            sendMessage(drunk, message);
+        }
+        if(insomniac != null){
+            String message;
+            if(insomniac.getCard() == Card.INSOMNIAC){
+                message = "睡不着觉又把身份牌拿出看了一遍，它确实还是失眠者... -_-!";
+            }else{
+                message = "睡不着觉又把身份牌拿出看了一遍，它竟然奇迹般的变成了%s。难道，刚才真的睡着了？";
+            }
+            sendMessage(insomniac, message);
         }
     }
 
     private void sendMessage(Player player, String message){
-
+        //TODO 发送消息到客户端
     }
 
-    public void publishMorningMessage(){
-
+    //接受玩家投票，计算，并公布获胜信息
+    public void vote(String playerName, int seat){
+        Player player = namePlayerMap.get(playerName);
+        player.setVoteSeat(seat);
+        if(checkVoteFinished()){
+            finishGame();
+        }
     }
 
-    //接收投票并公布获胜信息
-    public void vote(Player player, Player wolf){
+    private boolean checkVoteFinished(){
+        for(Player player: players){
+            if(player.getVoteSeat() == null){
+                return false;
+            }
+        }
+        return true;
+    }
 
+    private void finishGame(){
+        //根据玩家的投票情况对每个玩家进行票数统计
+        //并判断玩家队伍中是否存在狼
+        boolean hasWolf = false;
+        for(Player player: players){
+            int voteSet = player.getVoteSeat();
+            Player votedPlayer = seatPlayerMap.get(voteSet);
+            votedPlayer.beVote();
+            if(player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2){
+                hasWolf = true;
+            }
+        }
+
+        //找到被投票最多的票数
+        int maxVote = 0;
+        for(Player player:players){
+            if(player.getVotedCount() > maxVote){
+                maxVote = player.getVotedCount();
+            }
+        }
+
+        //找到该投票次数的玩家
+        Set<Player> votedPlayer = new HashSet();
+        for(Player player:players){
+            if(player.getVotedCount() == maxVote){
+                votedPlayer.add(player);
+            }
+        }
+
+        boolean hasVotedWolf = false;
+        boolean hasVotedTanner = false;
+        boolean hasVotedVillager = false;
+        for(Player player:votedPlayer){
+            Card card = player.getCard();
+            if(Camp.isTannerCamp(card)){
+                hasVotedTanner = true;
+            }else if(Camp.isWolfCamp(card)){
+                hasVotedWolf = true;
+            }else{
+                hasVotedVillager = true;
+            }
+        }
+
+        //分析获胜阵营: 狼人、村民、皮匠
+        //按照如下顺序判定:
+        //1. 如果只有皮匠被投出，则皮匠阵营获胜，其余阵营失败
+        //2. 否则，如果玩家中没有狼人, 且每人得票数为1, 则共同获胜
+        //2. 否则，如果有狼被投出，则村民获胜，皮匠和狼失败
+        //4. 否则，（没有狼和皮匠被投出）则狼获胜，村民和皮匠失败
+        Set<Camp> victoryCamp = new TreeSet();
+        Set<Camp> defeatCamp = new TreeSet();
+        if(hasVotedTanner && !hasVotedVillager && !hasVotedWolf){
+            //如果只有皮匠被投出则皮匠阵营获胜
+            victoryCamp.add(Camp.TANNER);
+            defeatCamp.add(Camp.WOLF);
+            defeatCamp.add(Camp.VILLAGER);
+        }
+        if(!hasWolf && maxVote == 1){
+            //共同获胜
+            victoryCamp.add(Camp.TANNER);
+            victoryCamp.add(Camp.VILLAGER);
+            victoryCamp.add(Camp.WOLF);
+        }else if(hasVotedWolf){
+            victoryCamp.add(Camp.VILLAGER);
+            defeatCamp.add(Camp.TANNER);
+            defeatCamp.add(Camp.WOLF);
+        }else{
+            victoryCamp.add(Camp.WOLF);
+            defeatCamp.add(Camp.VILLAGER);
+            defeatCamp.add(Camp.TANNER);
+        }
+
+        //生成获胜信息报告
+        StringBuilder reportBuilder = new StringBuilder();
+        reportBuilder.append("获胜阵营: ");
+        reportBuilder.append(Arrays.toString(victoryCamp.toArray()));
+        reportBuilder.append("\n");
+        reportBuilder.append("失败阵营: ");
+        reportBuilder.append(Arrays.toString(defeatCamp.toArray()));
+        reportBuilder.append("\n");
+        for(Camp camp:victoryCamp){
+            reportBuilder.append(camp);
+            reportBuilder.append("\n");
+            Set<Card> victoryCardSet = Camp.getCards(camp);
+            for(Player player:players){
+                Card card = player.getCard();
+                if(victoryCardSet.contains(card)){
+                    reportBuilder.append("\t");
+                    reportBuilder.append(player);
+                }
+            }
+        }
+
+        //广播消息
+        for(Player player:players){
+            sendMessage(player, reportBuilder.toString());
+        }
+    }
+
+    //捣蛋鬼换牌
+    public void troublemakerExchangeCard(String userName, int seat1, int seat2){
+        //TODO check player card is troublemaker
+        troublemakerExchangeSeat1 = seat1;
+        troublemakerExchangeSeat2 = seat2;
+    }
+
+    //强盗换牌
+    public void robberSnatchCard(String userName, int seat){
+        robberSnatchSeat = seat;
+    }
+
+    //狼人验牌
+    public void singleWolfCheckDeck(String userName, int deck){
+        singleWolfCheckDeck = deck;
+    }
+
+    //预言家验牌
+    public void seerCheckDeck(String userName, int deck1, int deck2){
+        seerCheckDeck1 = deck1;
+        seerCheckDeck2 = deck2;
+    }
+
+    //预言家验人
+    public void seerCheckPlayer(String userName, int seat){
+        seerCheckPlayer = seat;
+    }
+
+    //酒鬼换牌
+    public void drunkExchangeCard(String userName, int deck){
+        drunkCheckDeck = deck;
     }
 }

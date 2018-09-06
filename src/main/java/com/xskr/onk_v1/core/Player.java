@@ -1,28 +1,21 @@
 package com.xskr.onk_v1.core;
 
-import com.xskr.onk_v1.core.action.Action;
+import java.util.Objects;
 
 public class Player implements Comparable<Player>{
 	
-	private int id;
 	private String name;
 	private Card card;
-	private ShowCard showCard;          //展示给强盗孤狼玩家看的卡牌
-	private Card swapCard;
 	private int seat;
 	private boolean ready;
-	private Action action;
+	private Integer voteSeat;	//该玩家投票到某个座位的玩家
+	private int votedCount;		//该玩家被投票的次数
 	
-	public Player(int id, String name) {
+	public Player(String name) {
 		super();
-		this.id = id;
 		this.name = name.trim();
 	}
 	
-	public Integer getId() {
-		return id;
-	}
-
 	public String getName() {
 		return name;
 	}
@@ -33,22 +26,6 @@ public class Player implements Comparable<Player>{
 
 	public void setCard(Card card) {
 		this.card = card;
-	}
-
-    public ShowCard getShowCard() {
-        return showCard;
-    }
-
-    public void setShowCard(ShowCard showCard) {
-        this.showCard = showCard;
-    }
-
-    public Card getSwapCard() {
-		return swapCard;
-	}
-
-	public void setSwapCard(Card swapCard) {
-		this.swapCard = swapCard;
 	}
 
 	public boolean isReady() {
@@ -67,38 +44,45 @@ public class Player implements Comparable<Player>{
 		this.seat = seat;
 	}
 
-	public Action getAction() {
-		return action;
+	public Integer getVoteSeat() {
+		return voteSeat;
 	}
 
-	public void setAction(Action action) {
-		this.action = action;
+	public void setVoteSeat(Integer voteSeat) {
+		this.voteSeat = voteSeat;
+	}
+
+	public int getVotedCount() {
+		return votedCount;
+	}
+
+	public void setVotedCount(int votedCount) {
+		this.votedCount = votedCount;
+	}
+
+	public void beVote(){
+		votedCount++;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Player player = (Player) o;
+		return Objects.equals(name, player.name);
 	}
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + id;
-		return result;
+		return Objects.hash(name);
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Player other = (Player) obj;
-		if (id != other.id)
-			return false;
-		return true;
-	}
-
 	public int compareTo(Player o) {
-		return getId().compareTo(o.getId());
+		if(o == null){
+			return 1;
+		}else{
+			return getName().compareTo(o.getName());
+		}
 	}
-	
 }
