@@ -1,4 +1,4 @@
-package com.xskr.sjb_v1;
+package com.xskr;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

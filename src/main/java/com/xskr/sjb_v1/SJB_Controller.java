@@ -21,7 +21,7 @@ import java.security.Principal;
 import java.util.Map;
 
 @Controller
-public class WebController {
+public class SJB_Controller {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 

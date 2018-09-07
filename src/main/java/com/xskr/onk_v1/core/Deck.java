@@ -8,7 +8,7 @@ public class Deck {
 		Card.DOPPELGANGER,
 		Card.WEREWOLF_1, Card.WEREWOLF_2, Card.MINION,
 		Card.MASON_1, Card.MASON_2,
-		Card.SEER, Card.ROBBER, Card.TROUBLE_MAKER, Card.DRUNK, Card.INSOMNIAC,
+		Card.SEER, Card.ROBBER, Card.TROUBLEMAKER, Card.DRUNK, Card.INSOMNIAC,
 		Card.VILLAGER_1, Card.VILLAGER_2, Card.VILLAGER_3,
 		Card.HUNTER, Card.TANNER
 	};

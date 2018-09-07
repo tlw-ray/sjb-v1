@@ -1,10 +1,14 @@
 package com.xskr.onk_v1.core;
 
 import com.alibaba.fastjson.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class Room {
+
+    private Logger logger = LoggerFactory.getLogger(getClass());
 
     final int TABLE_DECK_THICKNESS = 3;
 
@@ -35,6 +39,7 @@ public class Room {
     private Integer drunkCheckDeck;
 
     public Room(List<Card> cardList){
+        logger.debug(Arrays.toString(cardList.toArray()));
         cards = cardList.toArray(new Card[0]);
         int seatCount = getSeatCount();
         players = new TreeSet();
@@ -51,22 +56,34 @@ public class Room {
     /**
      * 玩家进入房间
      * @param playerName
-     * @return True 进入房间成功， False 房间已满进入失败
+     * @return 返回玩家座位
      */
-    public void join(String playerName){
+    public int join(String playerName){
+        logger.debug(playerName);
         Player player = namePlayerMap.get(playerName);
-        if(player == null){
+        if(player != null){
             //玩家已经在该房间
+            return player.getSeat();
         }else{
             player = new Player(playerName);
             //玩家进入该房间
             if(players.size() < getSeatCount()){
                 //房间未满
                 players.add(player);
+                //为玩家分配一个座位, 从1到最大座位数遍历，发现一个座位没有人便分配
+                for(int i=1;i<=getSeatCount();i++){
+                    if(seatPlayerMap.get(i) == null){
+                        seatPlayerMap.put(i, player);
+                        namePlayerMap.put(playerName, player);
+                        player.setSeat(i);
+                        return i;
+                    }
+                }
             }else{
                 throw new RuntimeException("房间已满");
             }
         }
+        return -1; //TODO 未考虑到的座位分配逻辑
     }
 
     /**
@@ -74,39 +91,86 @@ public class Room {
      * @param playerName
      */
     public void leave(String playerName){
+        logger.debug(playerName);
         Player player = namePlayerMap.get(playerName);
-        players.remove(player);
-        //TODO 需要清理索引,用户在游戏进行时离开会导致游戏无法继续
+        if(player != null) {
+            players.remove(player);
+            //TODO 需要清理索引,用户在游戏进行时离开会导致游戏无法继续
+            namePlayerMap.remove(playerName);
+            cardPlayerMap.remove(player.getCard());
+            seatPlayerMap.remove(player.getSeat());
+        }
     }
 
     /**
      * 玩家坐到指定位置
-     * @param userName 玩家
-     * @param seatNumber 座位
+     * @param playerName 玩家
      * @return true 成功 false 该位置已经有人无法坐下
      */
-    public boolean ready(String userName, int seatNumber){
-        Player player = namePlayerMap.get(userName);
-        if(seatPlayerMap.keySet().contains(seatNumber)){
-            return false;
+    public boolean setReady(String playerName, boolean ready){
+        logger.debug("playerName = {}, ready = {}", playerName, ready);
+        Player player = namePlayerMap.get(playerName);
+        if(player != null) {
+            player.setReady(ready);
+            return ready;
         }else{
-            //TODO 检查seat number的合法性， 从1开始到玩家数量上限
-            seatPlayerMap.put(seatNumber, player);
-            player.setSeat(seatNumber);
-            return true;
+            String message = String.format("玩家%s不在房间，无法设定准备状态。", playerName);
+            throw new RuntimeException(message);
         }
+    }
+
+    public boolean sit(String playerName, int seat){
+        logger.debug("playerName = {}, seat = {}", playerName, seat);
+        //检查seat number的合法性， 从1开始到玩家数量上限
+        if(seat>0 && seat<=getSeatCount()){
+            Player player = namePlayerMap.get(playerName);
+            if(player != null){
+                if(!seatPlayerMap.keySet().contains(seat)){
+                    seatPlayerMap.put(seat, player);
+                    player.setSeat(seat);
+                    return true;
+                }else{
+                    // 这个座位已经有人了
+                }
+            }else{
+                String message = String.format("玩家%s不在房间, 无法应用座位号。", playerName);
+                throw new RuntimeException(message);
+            }
+        }else{
+            String message = String.format("试图为玩家%s分配不合理的座位号: %d", playerName, seat);
+            throw new RuntimeException(message);
+        }
+        return false;
+    }
+
+    public Set<Player> getPlayers(){
+        return players;
     }
 
     /**
      * 初始化一局游戏
      */
     public void newGame(){
+        logger.debug("");
 
         Deck deck = new Deck(cards);
 
         //检查玩家数量与预期数量一致
         if(players.size() != getSeatCount()){
             throw new RuntimeException(String.format("玩家数量%s与座位数量%s不符!!", players.size(), getSeatCount()));
+        }
+
+        //检查玩家是否都已经就坐, 座位号是否符合逻辑
+        for(int i=0;i<getSeatCount();i++){
+            int seatNumber = i + 1;
+            Player player = seatPlayerMap.get(seatNumber);
+            if(player != null) {
+                if (player.getSeat() != seatNumber) {
+                    throw new RuntimeException(String.format("玩家%s的座位号不符合逻辑.", JSON.toJSONString(player)));
+                }
+            }else{
+                throw new RuntimeException(String.format("玩家%s尚未就坐.", JSON.toJSONString(player)));
+            }
         }
 
         //清空上一局所有角色的操作状态
@@ -123,19 +187,6 @@ public class Room {
             player.setCard(null);
             player.setVoteSeat(null);
             player.setVotedCount(0);
-        }
-
-        //检查玩家是否都已经就坐, 座位号是否符合逻辑
-        for(int i=0;i<getSeatCount();i++){
-            int seatNumber = i + 1;
-            Player player = seatPlayerMap.get(seatNumber);
-            if(player != null) {
-                if (player.getSeat() != seatNumber) {
-                    throw new RuntimeException(String.format("玩家%s的座位号不符合逻辑.", JSON.toJSONString(player)));
-                }
-            }else{
-                throw new RuntimeException(String.format("玩家%s尚未就坐.", JSON.toJSONString(player)));
-            }
         }
 
         //洗牌
@@ -160,10 +211,11 @@ public class Room {
      * @return
      */
     public void afterDealCard(){
+        logger.debug("");
         //需要主动行动的玩家
         Player seer = cardPlayerMap.get(Card.SEER);
         Player robber = cardPlayerMap.get(Card.ROBBER);
-        Player troublemaker = cardPlayerMap.get(Card.TROUBLE_MAKER);
+        Player troublemaker = cardPlayerMap.get(Card.TROUBLEMAKER);
         Player drunk = cardPlayerMap.get(Card.DRUNK);
 
         String greet = "你好，您的初始身份是%s。";
@@ -192,8 +244,9 @@ public class Room {
 
     //是否能够进入白天，当所有需要操作的玩家行动完毕才能进入白天
     private boolean canBright(){
+        logger.debug("");
         //检查捣蛋鬼是否已经行动
-        if(cardPlayerMap.get(Card.TROUBLE_MAKER) != null){
+        if(cardPlayerMap.get(Card.TROUBLEMAKER) != null){
             //如果存在捣蛋鬼玩家
             if(troublemakerExchangeSeat1 == null
                     || troublemakerExchangeSeat2 == null){
@@ -248,6 +301,7 @@ public class Room {
 
     //夜间行动: 所有玩家均已声明行动完毕，开始真正处理玩家们的行动，处理所有流程并发布最新的信息
     public void nightAction(){
+        logger.debug("");
 //        Player doopelganger = cardPlayerMap.get(Card.DOPPELGANGER);
         Player singleWolf = getSingleWolf();
         Player wolf1 = cardPlayerMap.get(Card.WEREWOLF_1);
@@ -257,7 +311,7 @@ public class Room {
         Player meson2 = cardPlayerMap.get(Card.MASON_2);
         Player seer = cardPlayerMap.get(Card.SEER);
         Player robber = cardPlayerMap.get(Card.ROBBER);
-        Player troublemaker = cardPlayerMap.get(Card.TROUBLE_MAKER);
+        Player troublemaker = cardPlayerMap.get(Card.TROUBLEMAKER);
         Player drunk = cardPlayerMap.get(Card.DRUNK);
         Player insomniac = cardPlayerMap.get(Card.INSOMNIAC);
 //        Player hunter = cardPlayerMap.get(Card.HUNTER);
@@ -363,6 +417,7 @@ public class Room {
 
     //接受玩家投票，计算，并公布获胜信息
     public void vote(String playerName, int seat){
+        logger.debug("playerName={}, seat={}", playerName, seat);
         Player player = namePlayerMap.get(playerName);
         player.setVoteSeat(seat);
         if(checkVoteFinished()){
@@ -380,6 +435,7 @@ public class Room {
     }
 
     private void finishGame(){
+        logger.debug("");
         //根据玩家的投票情况对每个玩家进行票数统计
         //并判断玩家队伍中是否存在狼
         boolean hasWolf = false;
@@ -481,33 +537,39 @@ public class Room {
     //捣蛋鬼换牌
     public void troublemakerExchangeCard(String userName, int seat1, int seat2){
         //TODO check player card is troublemaker
+        logger.debug("userName={}, seat1={}, seat2={}", userName, seat1, seat2);
         troublemakerExchangeSeat1 = seat1;
         troublemakerExchangeSeat2 = seat2;
     }
 
     //强盗换牌
     public void robberSnatchCard(String userName, int seat){
+        logger.debug("userName={}, seat={}", userName, seat);
         robberSnatchSeat = seat;
     }
 
     //狼人验牌
     public void singleWolfCheckDeck(String userName, int deck){
+        logger.debug("userName = {}, deck = {}", userName, deck);
         singleWolfCheckDeck = deck;
     }
 
     //预言家验牌
     public void seerCheckDeck(String userName, int deck1, int deck2){
+        logger.debug("userName = {}, deck1 = {}, deck2 = {}", userName, deck1, deck2);
         seerCheckDeck1 = deck1;
         seerCheckDeck2 = deck2;
     }
 
     //预言家验人
     public void seerCheckPlayer(String userName, int seat){
+        logger.debug("userName={}, seat={}", userName, seat);
         seerCheckPlayer = seat;
     }
 
     //酒鬼换牌
     public void drunkExchangeCard(String userName, int deck){
+        logger.debug("userName = {}, deck = {}", userName, deck);
         drunkCheckDeck = deck;
     }
 }

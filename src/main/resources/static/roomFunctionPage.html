@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>功能测试页面</title>
+    <script src="/webjars/jquery/jquery.min.js"></script>
+</head>
+<body>
+    <div>
+        <!-- 创建房间 -->
+        <label for="cb_doppelganger">化身幽灵</label>
+        <input id="cb_doppelganger" type="checkbox" value="DOPPELGANGER" disabled><br>
+        <label for="cb_werewolf_1">狼人</label>
+        <input id="cb_werewolf_1" type="checkbox" value="WEREWOLF_1" checked><br>
+        <label for="cb_werewolf_2">狼人</label>
+        <input id="cb_werewolf_2" type="checkbox" value="WEREWOLF_2" checked><br>
+        <label for="minion">爪牙</label>
+        <input id="minion" type="checkbox" value="MINION" checked><br>
+        <label for="cb_mason_1">守夜人</label>
+        <input id="cb_mason_1" type="checkbox" value="MASON_1" checked><br>
+        <label for="cb_mason_2">守夜人</label>
+        <input id="cb_mason_2" type="checkbox" value="MASON_2" checked><br>
+        <label for="cb_seer">预言家</label>
+        <input id="cb_seer" type="checkbox" value="SEER" checked><br>
+        <label for="cb_robber">盗贼</label>
+        <input id="cb_robber" type="checkbox" value="ROBBER" checked><br>
+        <label for="cb_troublemaker">捣蛋鬼</label>
+        <input id="cb_troublemaker" type="checkbox" value="TROUBLEMAKER" checked><br>
+        <label for="cb_drunk">酒鬼</label>
+        <input id="cb_drunk" type="checkbox" value="DRUNK" checked><br>
+        <label for="cb_insomniac">失眠者</label>
+        <input id="cb_insomniac" type="checkbox" value="INSOMNIAC" checked><br>
+        <label for="cb_villager_1">村民</label>
+        <input id="cb_villager_1" type="checkbox" value="VILLAGER_1"><br>
+        <label for="cb_villager_2">村民</label>
+        <input id="cb_villager_2" type="checkbox" value="VILLAGER_2"><br>
+        <label for="cb_villager_3">村民</label>
+        <input id="cb_villager_3" type="checkbox" value="VILLAGER_3"><br>
+        <label for="cb_hunter">猎人</label>
+        <input id="cb_hunter" type="checkbox" value="HUNTER"><br>
+        <label for="cb_tanner">皮匠</label>
+        <input id="cb_tanner" type="checkbox" value="TANNER"><br>
+        <button type="button" id="create_room_button">创建房间</button>
+        <script>
+            $("#create_room_button").click(function() {
+                var selectedCharacter = $("input:checked").map(function(){return this.value}).get()
+                var stringify = JSON.stringify(selectedCharacter)
+                $.ajax({
+                    url:'/onk/room',
+                    type: 'POST',
+                    data: stringify,
+                    Accept : "application/json",
+                    contentType: "application/json",
+                    success:function(res){
+                        console.log("create room id: " + res);
+                    },
+                    error:function(res){
+                        console.log("Bad thing happend! " + res.statusText);
+                    }
+                });
+            })
+        </script>
+        <!-- 列举房间 -->
+        <button id="list_room_button">列举房间 >> log</button>
+        <script>
+            $("#list_room_button").click(function(){
+                $.ajax({
+                    url: '/onk/rooms',
+                    type: 'GET',
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(roomIDs){
+                        console.log(JSON.stringify(roomIDs))
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+        </script>
+    </div>
+    <div>
+        <!-- 列举房间内玩家信息-->
+        <label for="room_id_input">房间号: </label>
+        <input type="number" id="room_id_input" value="1">
+        <button id="join_room">加入房间</button>
+        <button id="leave_room">离开房间</button>
+        <button id="list_player_in_room_button">列举房间内玩家</button>
+        <script>
+            $('#join_room').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/join',
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(players){
+                        console.log("seat at: " + JSON.stringify(players))
+                    }, error: function(ex){
+                        console.log(ex)
+                    }
+                })
+            })
+            $('#leave_room').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/leave',
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(){
+                        console.log("leaved...")
+                    }, error: function(ex){
+                        console.log(ex)
+                    }
+                })
+            })
+            $("#list_player_in_room_button").click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + "/players",
+                    Accecpt: 'application/json',
+                    contentType: 'application/json',
+                    success: function(players){
+                        console.log(JSON.stringify(players))
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+        </script>
+    </div>
+    <div>
+        <!-- 选座 -->
+        <label for="seat_input">座位: </label>
+        <input type="number" id="seat_input" value="3">
+        <button id="sit_button">坐下</button>
+        <input type="checkbox" id="ready_input">准备</input>
+        <script>
+            $('#sit_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/sit/' + $('#seat_input').val(),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(){
+                        console.log('sit...')
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#ready_input').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/ready/' + $("#ready_input").prop('checked'),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+        </script>
+    </div>
+    <div>
+        <button id="new_game_button">新游戏</button><br>
+        <label for="deck_input">底牌: </label>
+        <input type="number" id="deck_input">
+        <button id="wolf_check_button">狼人看底牌</button>
+        <button id="drunk_exchange_button">酒鬼换底牌</button><br>
+        <label for="player_input">玩家: </label>
+        <input type="number" id="player_input">
+        <button id="robber_snatch_button">强盗换牌</button>
+        <button id="seer_check_player_button">预言家验身份</button>
+        <button id="vote_button">投票</button><br>
+        <label for="deck1_input">底牌: </label>
+        <input id="deck1_input" type="number">
+        <label for="deck2_input">底牌:</label>
+        <input id="deck2_input" type="number">
+        <button id="seer_check_deck_button">预言家验底牌</button><br>
+        <label for="player1_input">玩家: </label>
+        <input type="number" id="player1_input">
+        <label for="player2_input">玩家: </label>
+        <input type="number" id="player2_input">
+        <button id="troublemaker_exchange_button">捣蛋鬼换牌</button><br>
+        <script>
+            $('#new_game_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/new',
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(){
+                        console.log('new game...')
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#wolf_check_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/singleWolf/check/' + $("#deck_input").prop('checked'),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#drunk_exchange_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/drunk/exchange/' + $("#deck_input").val(),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#robber_snatch_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/robber/snatch/' + $("#player_input").val(),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#seer_check_player_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/seer/check/' + $('#player_input').val(),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#vote_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/vote/' + $("#player_input").val(),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#seer_check_deck_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/seer/check/' + $('#player1_input').val() + '/' + $('#deck2_input').val(),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+            $('#troublemaker_exchange_button').click(function(){
+                $.ajax({
+                    url: '/onk/' + $('#room_id_input').val() + '/ready/' + $("#ready_input").prop('checked'),
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(ready){
+                        console.log('ready: ' + ready)
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
+        </script>
+    </div>
+</body>
+</html>
