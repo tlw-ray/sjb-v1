@@ -40,6 +40,11 @@ public class ONKController{
         return RoomID_Generator;
     }
 
+    @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Room getRoom(@PathVariable int roomID){
+        return idRoomMap.get(roomID);
+    }
+
     /**
      * 列举现有的房间
      * @return

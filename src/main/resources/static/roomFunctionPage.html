@@ -61,7 +61,7 @@
             })
         </script>
         <!-- 列举房间 -->
-        <button id="list_room_button">列举房间 >> log</button>
+        <button id="list_room_button">列举房间</button>
         <script>
             $("#list_room_button").click(function(){
                 $.ajax({
@@ -86,6 +86,7 @@
         <button id="join_room">加入房间</button>
         <button id="leave_room">离开房间</button>
         <button id="list_player_in_room_button">列举房间内玩家</button>
+        <button id="room_button">房间信息</button>
         <script>
             $('#join_room').click(function(){
                 $.ajax({
@@ -124,13 +125,26 @@
                     }
                 })
             })
+            $("#room_button").click(function(){
+                $.ajax({
+                    url: '/onk/room/' + $('#room_id_input').val(),
+                    Accecpt: 'application/json',
+                    contentType: 'application/json',
+                    success: function(room){
+                        console.log(JSON.stringify(room))
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            })
         </script>
     </div>
     <div>
         <!-- 选座 -->
         <label for="seat_input">座位: </label>
         <input type="number" id="seat_input" value="3">
-        <button id="sit_button">坐下</button>
+        <button id="sit_button">换坐</button>
         <input type="checkbox" id="ready_input">准备</input>
         <script>
             $('#sit_button').click(function(){
@@ -164,23 +178,23 @@
     <div>
         <button id="new_game_button">新游戏</button><br>
         <label for="deck_input">底牌: </label>
-        <input type="number" id="deck_input">
+        <input type="number" id="deck_input" value="1">
         <button id="wolf_check_button">狼人看底牌</button>
         <button id="drunk_exchange_button">酒鬼换底牌</button><br>
         <label for="player_input">玩家: </label>
-        <input type="number" id="player_input">
+        <input type="number" id="player_input" value="1">
         <button id="robber_snatch_button">强盗换牌</button>
         <button id="seer_check_player_button">预言家验身份</button>
         <button id="vote_button">投票</button><br>
         <label for="deck1_input">底牌: </label>
-        <input id="deck1_input" type="number">
+        <input id="deck1_input" type="number" value="1">
         <label for="deck2_input">底牌:</label>
-        <input id="deck2_input" type="number">
+        <input id="deck2_input" type="number" value="2">
         <button id="seer_check_deck_button">预言家验底牌</button><br>
         <label for="player1_input">玩家: </label>
-        <input type="number" id="player1_input">
+        <input type="number" id="player1_input" value="1">
         <label for="player2_input">玩家: </label>
-        <input type="number" id="player2_input">
+        <input type="number" id="player2_input" value="2">
         <button id="troublemaker_exchange_button">捣蛋鬼换牌</button><br>
         <script>
             $('#new_game_button').click(function(){
@@ -198,7 +212,7 @@
             })
             $('#wolf_check_button').click(function(){
                 $.ajax({
-                    url: '/onk/' + $('#room_id_input').val() + '/singleWolf/check/' + $("#deck_input").prop('checked'),
+                    url: '/onk/' + $('#room_id_input').val() + '/singleWolf/check/' + $("#deck_input").val(),
                     Accept: 'application/json',
                     contentType: 'application/json',
                     success: function(ready){
@@ -276,7 +290,7 @@
             })
             $('#troublemaker_exchange_button').click(function(){
                 $.ajax({
-                    url: '/onk/' + $('#room_id_input').val() + '/ready/' + $("#ready_input").prop('checked'),
+                    url: '/onk/' + $('#room_id_input').val() + '/troublemaker/exchange/' + $("#player1_input").val() + "/" + $("#player2_input").val(),
                     Accept: 'application/json',
                     contentType: 'application/json',
                     success: function(ready){
