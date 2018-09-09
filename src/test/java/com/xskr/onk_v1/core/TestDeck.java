@@ -16,6 +16,5 @@ public class TestDeck {
             Card card = deck.deal();
             System.out.println(card);
         }
-        Assert.assertEquals(0, deck.getCards().length);
     }
 }
