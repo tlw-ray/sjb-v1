@@ -64,25 +64,36 @@ public class Player implements Comparable<Player>{
 		votedCount++;
 	}
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
-		Player player = (Player) o;
-		return Objects.equals(name, player.name);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(name);
-	}
+//	@Override
+//	public boolean equals(Object o) {
+//		if (this == o) return true;
+//		if (o == null || getClass() != o.getClass()) return false;
+//		Player player = (Player) o;
+//		return Objects.equals(name, player.name);
+//	}
+//
+//	@Override
+//	public int hashCode() {
+//		return Objects.hash(name);
+//	}
 
 	@Override
 	public int compareTo(Player o) {
 		if(o == null){
 			return 1;
 		}else{
-			return getName().compareTo(o.getName());
+			return Integer.compare(getSeat(), o.getSeat());
 		}
 	}
+
+    @Override
+    public String toString() {
+        return "Player{" +
+                "name='" + name + '\'' +
+                ", card=" + card +
+                ", seat=" + seat +
+                ", voteSeat=" + voteSeat +
+                ", votedCount=" + votedCount +
+                '}';
+    }
 }

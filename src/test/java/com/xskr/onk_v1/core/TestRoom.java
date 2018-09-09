@@ -16,7 +16,7 @@ public class TestRoom {
         List<Card> cards = CardUtil.getCards(cardCount);
         Room room = new Room(cards);
         for(int i=0;i<playerCount;i++){
-            room.join("player" + i);
+            int seat = room.join("player" + i);
         }
 
         // 所有玩家进入准备状态则自然开始游戏
@@ -72,18 +72,9 @@ public class TestRoom {
 
         //每个玩家都行动完毕后，房间自动发动夜间流程并发消息给每个玩家
 
-        //模拟情况1: 仅有皮匠被投出: 皮匠获胜
-        Player tanner = room.getPlayerByCard(Card.TANNER);
-        for(Player player: room.getPlayers()){
-            room.vote(player.getName(), tanner.getSeat());
-        }
+        System.out.println("--------模拟投票-------");
 
-        //模拟情况2: 没有狼被投出: 狼人获胜
-        Player minion = room.getPlayerByCard(Card.MINION);
-        for(Player player:room.getPlayers()){
-            room.vote(player.getName(), minion.getSeat());
-        }
-        //模拟情况3: 有狼被投出: 村民获胜
+        //判定狼玩家位置，供后面投票使用
         Player wolf1 = room.getPlayerByCard(Card.WEREWOLF_1);
         Player wolf2 = room.getPlayerByCard(Card.WEREWOLF_2);
         Player wolf = null;
@@ -92,14 +83,97 @@ public class TestRoom {
         }else if(wolf2 != null){
             wolf = wolf2;
         }
+
+        //模拟情况1: 仅有皮匠被投出: 皮匠获胜
+        Player tanner = room.getPlayerByCard(Card.TANNER);
+        System.out.println(tanner);
+        if(tanner != null) {
+            for (Player player : room.getPlayers()) {
+                room.vote(player.getName(), tanner.getSeat());
+            }
+        }else{
+            System.out.println("场面上没有皮匠，无法模拟皮匠被单独得票最高的场景");
+        }
+        room.clearVote();
+
+        //模拟情况2: 猎人被投出
+        Player hunter = room.getPlayerByCard(Card.HUNTER);
+        if(hunter != null){
+            for(Player player:room.getPlayers()){
+                player.setVoteSeat(hunter.getSeat());
+            }
+
+            if(wolf != null) {
+                //2.1 猎人投了狼: 村民阵营胜利
+                room.hunterVote(hunter.getName(), wolf.getSeat());
+            }else{
+                System.out.println("场面上没有狼存在，无法模拟有狼且猎人被投出的情况。");
+            }
+            if(tanner != null){
+                //2.2 猎人投了皮匠: 皮匠阵营胜利
+                room.hunterVote(hunter.getName(), tanner.getSeat());
+            }else{
+                System.out.println("场面上没有皮匠存在，无法模拟有狼且猎人被投出的情况。");
+            }
+
+            for(Player player:room.getPlayers()){
+                //2.3 猎人投了村民: 狼人阵营胜利
+                if(Camp.isVillagerCamp(player.getCard())){
+                    room.hunterVote(hunter.getName(), player.getSeat());
+                    break;
+                }
+            }
+            room.clearVote();
+        }else{
+            System.out.println("场面上没有猎人存在，无法模拟有狼且猎人被投出的情况。");
+        }
+
+        //模拟情况3:
         if(wolf != null){
+            //3.1 有狼且狼被投出: 村民获胜
             for(Player player:room.getPlayers()){
                 room.vote(player.getName(), wolf.getSeat());
             }
+            room.clearVote();
+            //3.2 有狼且爪牙被投出: 狼获胜
+            Player minion = room.getPlayerByCard(Card.MINION);
+            if(minion != null){
+                for(Player player:room.getPlayers()){
+                    room.vote(player.getName(), minion.getSeat());
+                }
+                room.clearVote();
+            }else{
+                System.out.println("没有爪牙的存在，不能模拟爪牙被投出的情况。");
+            }
+            //3.3 有狼且村民被投出: 狼获胜
+            //找到一个村民阵营的玩家
+            Player normalPlayer = null;
+            for(Player player:room.getPlayers()){
+                if(player.getCard() != Card.WEREWOLF_2 &&
+                        player.getCard() != Card.WEREWOLF_1 &&
+                        player.getCard() != Card.TANNER &&
+                        player.getCard() != Card.HUNTER
+                ){
+                    normalPlayer = player;
+                }
+            }
+            for(Player player:room.getPlayers()){
+                room.vote(player.getName(), normalPlayer.getSeat());
+            }
+            room.clearVote();
+        }else{
+            System.out.println("场面上没有狼，无法模拟狼被投票出的场景");
         }
 
-        //模拟情况4: 场面上没有狼, 投票平局分布，共同获胜
-        for(Player player:room.getPlayers()){
+
+        //模拟情况4: 场面上没有狼, 且投票平局分布，共同获胜
+        if(wolf1 != null){
+            wolf1.setCard(room.getTableDeck()[0]);
+        }
+        if(wolf2 != null){
+            wolf2.setCard(room.getTableDeck()[1]);
+        }
+        for (Player player : room.getPlayers()) {
             room.vote(player.getName(), player.getSeat());
         }
     }

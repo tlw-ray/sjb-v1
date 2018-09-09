@@ -2,7 +2,6 @@ package com.xskr.sjb_v1.model;
 
 import java.util.Hashtable;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class DataPack {
 

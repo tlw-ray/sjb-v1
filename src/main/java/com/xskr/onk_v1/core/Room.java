@@ -39,7 +39,7 @@ public class Room {
     private Integer drunkExchangeDeck;
 
     public Room(List<Card> cardList){
-        logger.debug(Arrays.toString(cardList.toArray()));
+        logger.debug("Room(cardList = {})", Arrays.toString(cardList.toArray()));
         cards = cardList.toArray(new Card[0]);
         int seatCount = getSeatCount();
         players = new TreeSet();
@@ -59,7 +59,7 @@ public class Room {
      * @return 返回玩家座位
      */
     public int join(String playerName){
-        logger.debug(playerName);
+        logger.debug("join(playerName = {})", playerName);
         Player player = namePlayerMap.get(playerName);
         if(player != null){
             //玩家已经在该房间
@@ -69,13 +69,13 @@ public class Room {
             //玩家进入该房间
             if(players.size() < getSeatCount()){
                 //房间未满
-                players.add(player);
-                //为玩家分配一个座位, 从1到最大座位数遍历，发现一个座位没有人便分配
+                //为玩家分配一个座位, 从0到最大座位数遍历，发现一个座位没有人便分配
                 for(int i=0;i<getSeatCount();i++){
                     if(seatPlayerMap.get(i) == null){
                         seatPlayerMap.put(i, player);
                         namePlayerMap.put(playerName, player);
                         player.setSeat(i);
+                        players.add(player);
                         return i;
                     }
                 }
@@ -91,7 +91,7 @@ public class Room {
      * @param playerName
      */
     public void leave(String playerName){
-        logger.debug(playerName);
+        logger.debug("leave(playerName = {})", playerName);
         Player player = namePlayerMap.get(playerName);
         if(player != null) {
             players.remove(player);
@@ -109,7 +109,7 @@ public class Room {
      * @return true 成功 false 该位置已经有人无法坐下
      */
     public void setReady(String playerName, boolean ready){
-        logger.debug("playerName = {}, ready = {}", playerName, ready);
+        logger.debug("setReady(playerName = {}, ready = {})", playerName, ready);
         Player player = namePlayerMap.get(playerName);
         if(player != null) {
             player.setReady(ready);
@@ -126,7 +126,7 @@ public class Room {
     }
 
     public boolean sit(String playerName, int seat){
-        logger.debug("playerName = {}, seat = {}", playerName, seat);
+        logger.debug("sit(playerName = {}, seat = {})", playerName, seat);
         //检查seat number的合法性， 从1开始到玩家数量上限
         if(seat>0 && seat<=getSeatCount()){
             Player player = namePlayerMap.get(playerName);
@@ -169,7 +169,7 @@ public class Room {
      * TODO 这个方法可以私有化
      */
     public void newGame(){
-        logger.debug("newGame");
+        logger.debug("newGame()");
 
         Deck deck = new Deck(cards);
 
@@ -203,9 +203,9 @@ public class Room {
         //清空上一局所有玩家的身份与投票状态
         for(Player player:players){
             player.setCard(null);
-            player.setVoteSeat(null);
-            player.setVotedCount(0);
         }
+        //清空每个玩家身上的被投票状态
+        clearVote();
 
         //洗牌
         deck.shuffle(500);
@@ -261,7 +261,7 @@ public class Room {
 
     //是否能够进入白天，当所有需要操作的玩家行动完毕才能进入白天
     private boolean canNightAction(){
-        logger.debug("canNightAction");
+        logger.debug("canNightAction()");
         //检查捣蛋鬼是否已经行动
         if(cardPlayerMap.get(Card.TROUBLEMAKER) != null){
             //如果存在捣蛋鬼玩家
@@ -326,7 +326,7 @@ public class Room {
 
     //夜间行动: 如果所有玩家均已声明行动完毕，开始真正处理玩家们的行动，处理所有流程并发布最新的信息，否则什么也不做
     public void attemptNightAction(){
-        logger.debug("attemptNightAction");
+        logger.debug("attemptNightAction()");
         if(canNightAction()){
 //          Player doopelganger = cardPlayerMap.get(Card.DOPPELGANGER);
             Player singleWolf = getSingleWolf();
@@ -408,6 +408,9 @@ public class Room {
                 Card swapCard = player.getCard();
                 player.setCard(robber.getCard());
                 robber.setCard(swapCard);
+                //更新缓存
+                cardPlayerMap.put(player.getCard(), player);
+                cardPlayerMap.put(robber.getCard(), robber);
                 String message = String.format("粗暴的抢夺了%s号玩家'%s'的身份牌，并将自己的身份塞给了他，冷静下来看到上面赫然写着%s。",
                         player.getSeat(), player.getName(), swapCard);
                 sendMessage(robber, message);
@@ -418,6 +421,9 @@ public class Room {
                 Card swapCard = player1.getCard();
                 player1.setCard(player2.getCard());
                 player2.setCard(swapCard);
+                //更新缓存
+                cardPlayerMap.put(player1.getCard(), player1);
+                cardPlayerMap.put(player2.getCard(), player2);
                 String message = String.format("成功交换了%s号玩家'%s'和%s号玩家'%s'的身份牌，他们发现了一定会暴跳如雷，嘿嘿嘿。",
                         player1.getSeat(), player1.getName(), player2.getSeat(), player2.getName());
                 sendMessage(troublemaker, message);
@@ -426,6 +432,9 @@ public class Room {
                 Card swapCard = tableDeck[drunkExchangeDeck];
                 tableDeck[drunkExchangeDeck] = drunk.getCard();
                 drunk.setCard(swapCard);
+                //更新缓存
+                cardPlayerMap.put(drunk.getCard(), drunk);
+                cardPlayerMap.remove(swapCard, drunk);
                 String message = String.format("喝的醉醺醺，随手把身份卡插入牌垛里的第%s张，并把它原有的那张抽了出来带在身上，还没来得及看就呼呼睡着了。", drunkExchangeDeck);
                 sendMessage(drunk, message);
             }
@@ -447,17 +456,24 @@ public class Room {
         System.out.println(send);
     }
 
+    private void sendMessage(String message){
+        //广播
+        System.out.println(message);
+    }
+
     //接受玩家投票，计算，并公布获胜信息
     public void vote(String playerName, int seat){
-        logger.debug("playerName={}, seat={}", playerName, seat);
+        logger.debug("vote(playerName = {}, seat= {})", playerName, seat);
         Player player = namePlayerMap.get(playerName);
         player.setVoteSeat(seat);
-        if(checkVoteFinished()){
+        //票数在finishGame时统计，这里仅做投票
+        if(canStatVote()){
             finishGame();
         }
     }
 
-    private boolean checkVoteFinished(){
+    //如果所有玩家都已经投票，那么可以统计投票数
+    private boolean canStatVote(){
         for(Player player: players){
             if(player.getVoteSeat() == null){
                 return false;
@@ -466,111 +482,162 @@ public class Room {
         return true;
     }
 
-    private void finishGame(){
-        logger.debug("finishGame");
+    //如果统计的最高获票玩家中包含猎人，则由猎人独立投票，否则计算获胜阵营
+    private VoteStat statVote(){
         //根据玩家的投票情况对每个玩家进行票数统计
         //并判断玩家队伍中是否存在狼
-        boolean hasWolf = false;
+        boolean hasWolfInPlayers = false;
+        boolean hasHunterInPlayers = false;
         for(Player player: players){
             int voteSet = player.getVoteSeat();
             Player votedPlayer = seatPlayerMap.get(voteSet);
             votedPlayer.beVote();
             if(player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2){
-                hasWolf = true;
+                hasWolfInPlayers = true;
+            }
+            if(player.getCard() == Card.HUNTER){
+                hasHunterInPlayers = true;
             }
         }
 
         //找到被投票最多的票数
-        int maxVote = 0;
+        int maxVoteCount = 0;
         for(Player player:players){
-            if(player.getVotedCount() > maxVote){
-                maxVote = player.getVotedCount();
+            if(player.getVotedCount() > maxVoteCount){
+                maxVoteCount = player.getVotedCount();
             }
         }
 
         //找到该投票次数的玩家
-        Set<Player> votedPlayer = new HashSet();
+        Set<Player> maxVotedPlayerSet = new HashSet();
         for(Player player:players){
-            if(player.getVotedCount() == maxVote){
-                votedPlayer.add(player);
+            if(player.getVotedCount() == maxVoteCount){
+                maxVotedPlayerSet.add(player);
             }
         }
+        return new VoteStat(hasWolfInPlayers, hasHunterInPlayers, maxVoteCount, maxVotedPlayerSet);
+    }
 
-        boolean hasVotedWolf = false;
-        boolean hasVotedTanner = false;
-        boolean hasVotedVillager = false;
-        for(Player player:votedPlayer){
-            Card card = player.getCard();
-            if(Camp.isTannerCamp(card)){
-                hasVotedTanner = true;
-            }else if(Camp.isWolfCamp(card)){
-                hasVotedWolf = true;
-            }else{
-                hasVotedVillager = true;
-            }
-        }
+    private void finishGame() {
+        logger.debug("finishGame()");
+        VoteStat voteStat = statVote();
 
         //分析获胜阵营: 狼人、村民、皮匠
         //按照如下顺序判定:
-        //1. 如果只有皮匠被投出，则皮匠阵营获胜，其余阵营失败
-        //2. 否则，如果玩家中没有狼人, 且每人得票数为1, 则共同获胜
-        //2. 否则，如果有狼被投出，则村民获胜，皮匠和狼失败
-        //4. 否则，（没有狼和皮匠被投出）则狼获胜，村民和皮匠失败
+        //1. 如果玩家中没有狼人, 且每人得票数为1, 则共同获胜
+        //1. 如果获得最大投票数的玩家中包含猎人身份，，则由猎人获得当前投票结果后独立投票另一位玩家
+        //1. 否则，如果只有皮匠获得最大票数，则皮匠阵营获胜
+        //2. 否则，
+        //3. 否则，如果获得最大票数的角色中有狼，则村民获胜，皮匠和狼失败; 否则狼获胜，村民和皮匠失败
+
+        // 统计并广播获胜阵营信息，游戏结束
         Set<Camp> victoryCamp = new TreeSet();
         Set<Camp> defeatCamp = new TreeSet();
-        if(hasVotedTanner && !hasVotedVillager && !hasVotedWolf){
+
+        if(voteStat.onlyVotedTanner()){
             //如果只有皮匠被投出则皮匠阵营获胜
             victoryCamp.add(Camp.TANNER);
             defeatCamp.add(Camp.WOLF);
             defeatCamp.add(Camp.VILLAGER);
-        }
-        if(!hasWolf && maxVote == 1){
-            //共同获胜
-            victoryCamp.add(Camp.TANNER);
-            victoryCamp.add(Camp.VILLAGER);
-            victoryCamp.add(Camp.WOLF);
-        }else if(hasVotedWolf){
-            victoryCamp.add(Camp.VILLAGER);
-            defeatCamp.add(Camp.TANNER);
-            defeatCamp.add(Camp.WOLF);
-        }else{
-            victoryCamp.add(Camp.WOLF);
-            defeatCamp.add(Camp.VILLAGER);
-            defeatCamp.add(Camp.TANNER);
-        }
+        }else if (voteStat.hasWolfInPlayers()) {
+            // 如果所有玩家中有狼
+            if(voteStat.voted(Card.HUNTER)){
+                // 如果有猎人被投中，则触发猎人技能
 
+                // 广播当前投票信息
+                StringBuilder report = new StringBuilder();
+                for(Player player:players){
+                    Player votedPlayer = seatPlayerMap.get(player.getVoteSeat());
+                    report.append(player.getSeat());
+                    report.append("号玩家'");
+                    report.append(player.getName());
+                    report.append("'投");
+                    report.append(player.getVoteSeat());
+                    report.append("号玩家'");
+                    report.append(votedPlayer.getName());
+                    report.append("'\n");
+                }
+                sendMessage(report.toString());
+                //提示猎人由他独立投票
+                Player hunter = cardPlayerMap.get(Card.HUNTER);
+                sendMessage(hunter, "请投票");
+                return ;
+            }else if(voteStat.voted(Card.WEREWOLF_1) || voteStat.voted(Card.WEREWOLF_2)){
+                victoryCamp.add(Camp.VILLAGER);
+                defeatCamp.add(Camp.TANNER);
+                defeatCamp.add(Camp.WOLF);
+            }else{
+                victoryCamp.add(Camp.WOLF);
+                defeatCamp.add(Camp.VILLAGER);
+                defeatCamp.add(Camp.TANNER);
+            }
+        }else{
+            //如果没有狼
+            if (voteStat.getMaxVoteCount() == 1) {
+                //共同获胜
+                victoryCamp.add(Camp.TANNER);
+                victoryCamp.add(Camp.VILLAGER);
+                victoryCamp.add(Camp.WOLF);
+            } else if(voteStat.onlyVotedTanner()){
+                //皮匠获胜
+                victoryCamp.add(Camp.TANNER);
+                defeatCamp.add(Camp.VILLAGER);
+                defeatCamp.add(Camp.WOLF);
+            }else{
+                //共同失败
+                defeatCamp.add(Camp.TANNER);
+                defeatCamp.add(Camp.VILLAGER);
+                defeatCamp.add(Camp.WOLF);
+            }
+        }
+        gameFinish(victoryCamp, defeatCamp);
+    }
+
+    private void gameFinish(Set<Camp> victoryCamp, Set<Camp> defeatCamp) {
         //生成获胜信息报告
         StringBuilder reportBuilder = new StringBuilder();
-        reportBuilder.append("获胜阵营: ");
-        reportBuilder.append(Arrays.toString(victoryCamp.toArray()));
-        reportBuilder.append("\n");
-        reportBuilder.append("失败阵营: ");
-        reportBuilder.append(Arrays.toString(defeatCamp.toArray()));
         reportBuilder.append("\n");
         for(Camp camp:victoryCamp){
+            reportBuilder.append("\t获胜阵营: ");
             reportBuilder.append(camp);
             reportBuilder.append("\n");
             Set<Card> victoryCardSet = Camp.getCards(camp);
-            for(Player player:players){
-                Card card = player.getCard();
-                if(victoryCardSet.contains(card)){
-                    reportBuilder.append("\t");
-                    reportBuilder.append(player);
-                }
-            }
+            appendPlayer(reportBuilder, victoryCardSet);
+        }
+        for(Camp camp:defeatCamp){
+            reportBuilder.append("\t失败阵营: ");
+            reportBuilder.append(camp);
+            reportBuilder.append("\n");
+            Set<Card> defeatCardSet = Camp.getCards(camp);
+            appendPlayer(reportBuilder, defeatCardSet);
         }
 
+
         //广播消息
-//        for(Player player:players){
-//            sendMessage(player, reportBuilder.toString());
-//        }
-        sendMessage(players.iterator().next(), reportBuilder.toString());
+        sendMessage(reportBuilder.toString());
+
+        //解除所有玩家的准备状态，本局游戏结束
+        for(Player player:players){
+            player.setReady(false);
+        }
+        //TODO 通知所有客户端
+    }
+
+    private void appendPlayer(StringBuilder reportBuilder, Set<Card> victoryCardSet) {
+        for (Player player : players) {
+            Card card = player.getCard();
+            if (victoryCardSet.contains(card)) {
+                reportBuilder.append("\t\t");
+                reportBuilder.append(player);
+                reportBuilder.append("\n");
+            }
+        }
     }
 
     //捣蛋鬼换牌
     public void troublemakerExchangeCard(String userName, int seat1, int seat2){
         //TODO check player card is troublemaker
-        logger.debug("userName={}, seat1={}, seat2={}", userName, seat1, seat2);
+        logger.debug("troublemakerExchangeCard(userName={}, seat1={}, seat2={})", userName, seat1, seat2);
         troublemakerExchangeSeat1 = seat1;
         troublemakerExchangeSeat2 = seat2;
         attemptNightAction();
@@ -578,21 +645,21 @@ public class Room {
 
     //强盗换牌
     public void robberSnatchCard(String userName, int seat){
-        logger.debug("userName={}, seat={}", userName, seat);
+        logger.debug("robberSnatchCard(userName={}, seat={})", userName, seat);
         robberSnatchSeat = seat;
         attemptNightAction();
     }
 
     //狼人验牌
     public void singleWolfCheckDeck(String userName, int deck){
-        logger.debug("userName = {}, deck = {}", userName, deck);
+        logger.debug("singleWolfCheckDeck(userName = {}, deck = {})", userName, deck);
         singleWolfCheckDeck = deck;
         attemptNightAction();
     }
 
     //预言家验牌
     public void seerCheckDeck(String userName, int deck1, int deck2){
-        logger.debug("userName = {}, deck1 = {}, deck2 = {}", userName, deck1, deck2);
+        logger.debug("seerCheckDeck(userName = {}, deck1 = {}, deck2 = {})", userName, deck1, deck2);
         seerCheckDeck1 = deck1;
         seerCheckDeck2 = deck2;
         attemptNightAction();
@@ -600,15 +667,47 @@ public class Room {
 
     //预言家验人
     public void seerCheckPlayer(String userName, int seat){
-        logger.debug("userName={}, seat={}", userName, seat);
+        logger.debug("seerCheckPlayer(userName={}, seat={})", userName, seat);
         seerCheckPlayer = seat;
         attemptNightAction();
     }
 
     //酒鬼换牌
     public void drunkExchangeCard(String userName, int deck){
-        logger.debug("userName = {}, deck = {}", userName, deck);
+        logger.debug("drunkExchangeCard(userName = {}, deck = {})", userName, deck);
         drunkExchangeDeck = deck;
         attemptNightAction();
+    }
+
+    //猎人投票
+    public void hunterVote(String userName, int seat){
+        logger.debug("hunterVote(userName = {}, seat = {})", userName, seat);
+        Player player = seatPlayerMap.get(seat);
+        Set<Camp> victoryCampSet = new TreeSet();
+        Set<Camp> defeatCampSet = new TreeSet();
+        if(player.getCard() == Card.TANNER){
+            sendMessage("皮匠获胜");
+            victoryCampSet.add(Camp.TANNER);
+            defeatCampSet.add(Camp.WOLF);
+            defeatCampSet.add(Camp.VILLAGER);
+        }else if(player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2){
+            sendMessage("村民阵营获胜");
+            victoryCampSet.add(Camp.VILLAGER);
+            defeatCampSet.add(Camp.WOLF);
+            defeatCampSet.add(Camp.TANNER);
+        }else{
+            sendMessage("狼人阵营获胜");
+            victoryCampSet.add(Camp.WOLF);
+            defeatCampSet.add(Camp.VILLAGER);
+            defeatCampSet.add(Camp.TANNER);
+        }
+        gameFinish(victoryCampSet, defeatCampSet);
+    }
+
+    public void clearVote(){
+        for(Player player:players){
+            player.setVoteSeat(null);
+            player.setVotedCount(0);
+        }
     }
 }
