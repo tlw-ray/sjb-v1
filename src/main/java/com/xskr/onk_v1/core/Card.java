@@ -1,24 +1,20 @@
 package com.xskr.onk_v1.core;
 
+import java.util.ResourceBundle;
+
 public enum Card {
 	DOPPELGANGER,
 	WEREWOLF_1, WEREWOLF_2, MINION,
 	MASON_1, MASON_2,
 	SEER, ROBBER, TROUBLEMAKER,
 	DRUNK, INSOMNIAC,
-	VILLAGER_1, VILLAGER_2, VILLAGER_3,
-	HUNTER, TANNER;
+	HUNTER, TANNER,
+	VILLAGER_1, VILLAGER_2, VILLAGER_3;
 
-	//	MYSTIC_WOLF, ALPHA_WOLF,
-	//	APPRENTICE_SEER, WITCH, REVEALER,
 	
-//	ResourceBundle resource = ResourceBundle.getBundle(getClass().getName());
-//
-//	public String getDisplayName(){
-//		return resource.getString(this.name());
-//	}
-//
-//	public String getDescription(){
-//		return resource.getString(this.name() + "_DESC");
-//	}
+	ResourceBundle resource = ResourceBundle.getBundle(getClass().getName());
+
+	public String getDisplayName(){
+		return resource.getString(this.name());
+	}
 }

@@ -4,20 +4,12 @@ import java.util.Random;
 
 public class Deck {
 
-	public static final Card[] CARD_TEMPLATE = new Card[]{
-		Card.DOPPELGANGER,
-		Card.WEREWOLF_1, Card.WEREWOLF_2, Card.MINION,
-		Card.MASON_1, Card.MASON_2,
-		Card.SEER, Card.ROBBER, Card.TROUBLEMAKER, Card.DRUNK, Card.INSOMNIAC,
-		Card.VILLAGER_1, Card.VILLAGER_2, Card.VILLAGER_3,
-		Card.HUNTER, Card.TANNER
-	};
-	  
     private Card cards[];
     private int currentCount;
     
     public Deck(Card[] cards){
     	this.cards = cards;
+    	currentCount = cards.length;
     }
 	
 	// 洗牌
@@ -37,11 +29,6 @@ public class Deck {
 		return cards[--currentCount];
 	}
 	
-	// 重置
-	public void resetdesk(){
-		currentCount = cards.length;
-	}
-	
 	// 交换现有牌库中的两张牌
 	private void switchCard(int m, int n){
         Card temp=cards[m];
@@ -57,5 +44,9 @@ public class Deck {
             sb.append(" ");
         }
 	    return sb.toString();
+	}
+
+	public Card[] getCards(){
+    	return cards;
 	}
 }

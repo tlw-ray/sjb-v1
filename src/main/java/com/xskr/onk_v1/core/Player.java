@@ -32,7 +32,7 @@ public class Player implements Comparable<Player>{
 		return ready;
 	}
 
-	public void setReady(boolean ready) {
+	void setReady(boolean ready) {
 		this.ready = ready;
 	}
 

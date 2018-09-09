@@ -23,6 +23,10 @@ repositories {
     mavenCentral()
 }
 
+processResources {
+    from 'src/main/java'
+}
+
 dependencies {
     compile('org.springframework.boot:spring-boot-starter-actuator')
     compile('org.springframework.boot:spring-boot-starter-security')
