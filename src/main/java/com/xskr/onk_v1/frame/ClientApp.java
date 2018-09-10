@@ -11,26 +11,44 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import org.apache.commons.compress.utils.Charsets;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.entity.UrlEncodedFormEntity;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
-import org.apache.hc.core5.http.HttpResponse;
-import org.apache.hc.core5.http.NameValuePair;
-import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.message.BasicNameValuePair;
+//import org.apache.hc.client5.http.classic.methods.HttpGet;
+//import org.apache.hc.client5.http.classic.methods.HttpPost;
+//import org.apache.hc.client5.http.entity.UrlEncodedFormEntity;
+//import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+//import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+//import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+//import org.apache.hc.core5.http.HttpResponse;
+//import org.apache.hc.core5.http.NameValuePair;
+//import org.apache.hc.core5.http.message.BasicNameValuePair;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.hc.core5.http.URIScheme.HTTP;
+//import static org.apache.hc.core5.http.URIScheme.HTTP;
 
 
 public class ClientApp extends Application {
 
+    static{
+        System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.SimpleLog");
+        System.setProperty("org.apache.commons.logging.simplelog.showdatetime", "true");
+        System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.impl.conn", "DEBUG");
+        System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.impl.client", "DEBUG");
+        System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.client", "INFO");
+    }
+
     private static final String baseURL = "http://127.0.0.1:8080/";
+    private static final String appURL = baseURL + "onk/";
+
     private CloseableHttpClient httpClient = HttpClientBuilder.create().build();
 
     @Override
@@ -122,36 +140,36 @@ public class ClientApp extends Application {
         });
 
         joinRoomButton.setOnAction(e -> {
-            get(baseURL + roomSpinner.getValue() + "/join");
+            get(appURL + roomSpinner.getValue() + "/join");
         });
 
         readyCheckBox.setOnAction(e->{
             boolean ready = readyCheckBox.isSelected();
-            get(baseURL + roomSpinner.getValue() + "/ready/" + ready);
+            get(appURL + roomSpinner.getValue() + "/ready/" + ready);
         });
 
         wolfDeckButton.setOnAction(e->{
-            get(baseURL + roomSpinner.getValue() + "/singleWolf/check/" + deckSpinner.getValue());
+            get(appURL + roomSpinner.getValue() + "/singleWolf/check/" + deckSpinner.getValue());
         });
 
         drunkExchangeButton.setOnAction(e -> {
-            get(baseURL + roomSpinner.getValue() + "/drunk/exchange/" + deckSpinner.getValue());
+            get(appURL + roomSpinner.getValue() + "/drunk/exchange/" + deckSpinner.getValue());
         });
 
         robberSnatchButton.setOnAction(e -> {
-            get(baseURL + roomSpinner.getValue() + "/robber/snatch/" + playerSpinner.getValue());
+            get(appURL + roomSpinner.getValue() + "/robber/snatch/" + playerSpinner.getValue());
         });
 
         seerCheckButton.setOnAction(e->{
-            get(baseURL + roomSpinner.getValue() + "/seer/check/" + playerSpinner.getValue());
+            get(appURL + roomSpinner.getValue() + "/seer/check/" + playerSpinner.getValue());
         });
 
         voteButton.setOnAction(e->{
-            get(baseURL + roomSpinner.getValue() + "/vote/" + playerSpinner.getValue());
+            get(appURL + roomSpinner.getValue() + "/vote/" + playerSpinner.getValue());
         });
 
         seerCheckButton.setOnAction(e->{
-            get(baseURL + roomSpinner.getValue() + "/seer/check/" + deck1Spinner.getValue() + "/" + deck2Spinner.getValue());
+            get(appURL + roomSpinner.getValue() + "/seer/check/" + deck1Spinner.getValue() + "/" + deck2Spinner.getValue());
         });
 
         troublemakerExchangeButton.setOnAction(e->{
@@ -160,10 +178,11 @@ public class ClientApp extends Application {
     }
 
     private void get(String url){
+        System.out.println(url);
         HttpGet httpGet = new HttpGet(url);
         try {
             CloseableHttpResponse response = httpClient.execute(httpGet);
-            System.out.println(response.getCode() + response.getEntity());
+            System.out.println(response.getStatusLine().getStatusCode() + "" + response.getEntity());
         } catch (IOException e) {
             e.printStackTrace();
         }

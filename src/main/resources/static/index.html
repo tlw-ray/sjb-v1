@@ -4,22 +4,25 @@
     <meta charset="UTF-8">
     <title>功能测试页面</title>
     <script src="/webjars/jquery/jquery.min.js"></script>
+    <script src="/webjars/sockjs-client/sockjs.min.js"></script>
+    <script src="/webjars/stomp-websocket/stomp.min.js"></script>
 </head>
 <body>
-    <div>
+    玩家: <label id="who_label">WHO</label>
+    <div id="create_room_div">
         <!-- 创建房间 -->
         <label for="cb_doppelganger">化身幽灵</label>
         <input id="cb_doppelganger" type="checkbox" value="DOPPELGANGER" disabled><br>
         <label for="cb_werewolf_1">狼人</label>
-        <input id="cb_werewolf_1" type="checkbox" value="WEREWOLF_1" checked><br>
+        <input id="cb_werewolf_1" type="checkbox" value="WEREWOLF_1"><br>
         <label for="cb_werewolf_2">狼人</label>
         <input id="cb_werewolf_2" type="checkbox" value="WEREWOLF_2" checked><br>
         <label for="minion">爪牙</label>
         <input id="minion" type="checkbox" value="MINION" checked><br>
         <label for="cb_mason_1">守夜人</label>
-        <input id="cb_mason_1" type="checkbox" value="MASON_1" checked><br>
+        <input id="cb_mason_1" type="checkbox" value="MASON_1"><br>
         <label for="cb_mason_2">守夜人</label>
-        <input id="cb_mason_2" type="checkbox" value="MASON_2" checked><br>
+        <input id="cb_mason_2" type="checkbox" value="MASON_2"><br>
         <label for="cb_seer">预言家</label>
         <input id="cb_seer" type="checkbox" value="SEER" checked><br>
         <label for="cb_robber">盗贼</label>
@@ -27,9 +30,9 @@
         <label for="cb_troublemaker">捣蛋鬼</label>
         <input id="cb_troublemaker" type="checkbox" value="TROUBLEMAKER" checked><br>
         <label for="cb_drunk">酒鬼</label>
-        <input id="cb_drunk" type="checkbox" value="DRUNK" checked><br>
+        <input id="cb_drunk" type="checkbox" value="DRUNK"><br>
         <label for="cb_insomniac">失眠者</label>
-        <input id="cb_insomniac" type="checkbox" value="INSOMNIAC" checked><br>
+        <input id="cb_insomniac" type="checkbox" value="INSOMNIAC"><br>
         <label for="cb_villager_1">村民</label>
         <input id="cb_villager_1" type="checkbox" value="VILLAGER_1"><br>
         <label for="cb_villager_2">村民</label>
@@ -41,9 +44,10 @@
         <label for="cb_tanner">皮匠</label>
         <input id="cb_tanner" type="checkbox" value="TANNER"><br>
         <button type="button" id="create_room_button">创建房间</button>
+        <button id="list_room_button">列举房间</button>
         <script>
             $("#create_room_button").click(function() {
-                var selectedCharacter = $("input:checked").map(function(){return this.value}).get()
+                var selectedCharacter = $("#create_room_div input:checked").map(function(){return this.value}).get()
                 var stringify = JSON.stringify(selectedCharacter)
                 $.ajax({
                     url:'/onk/room',
@@ -51,18 +55,14 @@
                     data: stringify,
                     Accept : "application/json",
                     contentType: "application/json",
-                    success:function(res){
-                        console.log("create room id: " + res);
+                    success:function(room){
+                        console.log("create room: " + JSON.stringify(room));
                     },
                     error:function(res){
                         console.log("Bad thing happend! " + res.statusText);
                     }
                 });
             })
-        </script>
-        <!-- 列举房间 -->
-        <button id="list_room_button">列举房间</button>
-        <script>
             $("#list_room_button").click(function(){
                 $.ajax({
                     url: '/onk/rooms',
@@ -176,7 +176,6 @@
         </script>
     </div>
     <div>
-        <button id="new_game_button">新游戏</button><br>
         <label for="deck_input">底牌: </label>
         <input type="number" id="deck_input" value="1">
         <button id="wolf_check_button">狼人看底牌</button>
@@ -187,9 +186,9 @@
         <button id="seer_check_player_button">预言家验身份</button>
         <button id="vote_button">投票</button><br>
         <label for="deck1_input">底牌: </label>
-        <input id="deck1_input" type="number" value="1">
+        <input id="deck1_input" type="number" value="2">
         <label for="deck2_input">底牌:</label>
-        <input id="deck2_input" type="number" value="2">
+        <input id="deck2_input" type="number" value="3">
         <button id="seer_check_deck_button">预言家验底牌</button><br>
         <label for="player1_input">玩家: </label>
         <input type="number" id="player1_input" value="1">
@@ -197,19 +196,6 @@
         <input type="number" id="player2_input" value="2">
         <button id="troublemaker_exchange_button">捣蛋鬼换牌</button><br>
         <script>
-            $('#new_game_button').click(function(){
-                $.ajax({
-                    url: '/onk/' + $('#room_id_input').val() + '/new',
-                    Accept: 'application/json',
-                    contentType: 'application/json',
-                    success: function(){
-                        console.log('new game...')
-                    },
-                    error: function(ex){
-                        console.log(JSON.stringify(ex))
-                    }
-                })
-            })
             $('#wolf_check_button').click(function(){
                 $.ajax({
                     url: '/onk/' + $('#room_id_input').val() + '/singleWolf/check/' + $("#deck_input").val(),
@@ -300,6 +286,50 @@
                         console.log(JSON.stringify(ex))
                     }
                 })
+            })
+        </script>
+        <button id="clear_message_button">清空消息</button>Message:
+        <div id="messages"></div>
+
+        <script>
+            $.ready(
+                $.ajax({
+                    url: '/onk/who',
+                    type: 'GET',
+                    Accept: 'application/json',
+                    contentType: 'application/json',
+                    success: function(name){
+                        $('#who_label').text(name)
+                        var stompClient = null;
+                        var endpointURL = "/onk/endpoint"
+                        var privateTopicURL = "/topic/" + name
+                        var socket = new SockJS(endpointURL)
+                        stompClient = Stomp.over(socket)
+                        stompClient.connect({}, function (frame) {
+                            console.log('-----Connected: ' + frame)
+                            stompClient.subscribe(privateTopicURL, function (message) {
+                                showMessage(message.body)
+                            })
+                        })
+                    },
+                    error: function(ex){
+                        console.log(JSON.stringify(ex))
+                    }
+                })
+            )
+
+            function disconnect() {
+                if (stompClient !== null) {
+                    stompClient.disconnect();
+                }
+                console.log("Disconnected");
+            }
+
+            function showMessage(message){
+                $('#messages').append('<div>' + message + '</div>')
+            }
+            $('#clear_message_button').click(function(){
+                $('#messages').html("")
             })
         </script>
     </div>

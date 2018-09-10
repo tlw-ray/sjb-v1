@@ -1,7 +1,7 @@
 var stompClient = null;
-var endpointURL = "/endpoint";
+var endpointURL = "/endpoint/sjb";
 var topicURL = "/topic";
-var targetURL = "/app/req";
+var targetURL = "/sjb/req";
 var socket = new SockJS(endpointURL)
 stompClient = Stomp.over(socket)
 stompClient.onerror = function(e){console.log(e)}

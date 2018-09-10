@@ -14,9 +14,9 @@ public class TestRoom {
         int playerCount = 9;
         int cardCount = 9 + Room.TABLE_DECK_THICKNESS;
         List<Card> cards = CardUtil.getCards(cardCount);
-        Room room = new Room(cards);
+        Room room = new Room(1, cards);
         for(int i=0;i<playerCount;i++){
-            int seat = room.join("player" + i);
+            room.join("player" + i);
         }
 
         // 所有玩家进入准备状态则自然开始游戏
@@ -31,8 +31,8 @@ public class TestRoom {
             System.out.println(player.getName() + " card: " + player.getCard());
             Assert.assertNotNull(player.getCard());
         }
-        Assert.assertEquals(Room.TABLE_DECK_THICKNESS, room.getTableDeck().length);
-        for(Card card:room.getTableDeck()){
+        Assert.assertEquals(Room.TABLE_DECK_THICKNESS, room.getTableDeck().size());
+        for(Card card:room.getTableDeck().values()){
             System.out.println("deck: " + card);
             Assert.assertNotNull(card);
         }
@@ -168,10 +168,10 @@ public class TestRoom {
 
         //模拟情况4: 场面上没有狼, 且投票平局分布，共同获胜
         if(wolf1 != null){
-            wolf1.setCard(room.getTableDeck()[0]);
+            wolf1.setCard(room.getTableDeck().get(1));
         }
         if(wolf2 != null){
-            wolf2.setCard(room.getTableDeck()[1]);
+            wolf2.setCard(room.getTableDeck().get(2));
         }
         for (Player player : room.getPlayers()) {
             room.vote(player.getName(), player.getSeat());

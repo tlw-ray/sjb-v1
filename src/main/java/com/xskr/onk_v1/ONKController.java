@@ -1,11 +1,16 @@
 package com.xskr.onk_v1;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Player;
 import com.xskr.onk_v1.core.Room;
+import com.xskr.sjb_v1.model.DataPack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -21,23 +26,27 @@ public class ONKController{
     private static int RoomID_Generator = 0;
     private Map<Integer, Room> idRoomMap = Collections.synchronizedMap(new TreeMap());
 
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+
     /**
      * 创建房间，需要传入该房间支持的角色列表
      * @param cardNames 角色名称清单
-     * @return 房间号码
+     * @return 房间静态信息, ID, 现有玩家清单, 座位数量等, 角色列表
      */
     @RequestMapping(path = "/room", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public int createRoom(@RequestBody String[] cardNames){
+    public Room createRoom(@RequestBody String[] cardNames){
         logger.debug(Arrays.toString(cardNames));
         List<Card> cards = new ArrayList();
         for(String cardName:cardNames){
             Card card = Card.valueOf(cardName);
             cards.add(card);
         }
-        Room room = new Room(cards);
         RoomID_Generator++;
+        Room room = new Room(RoomID_Generator, cards);
+        room.setSimpMessagingTemplate(simpMessagingTemplate);
         idRoomMap.put(RoomID_Generator, room);
-        return RoomID_Generator;
+        return room;
     }
 
     @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -65,20 +74,21 @@ public class ONKController{
         return room.getPlayers();
     }
 
+    @RequestMapping(path="/who")
+    public String who(){
+        return getCurrentUserName();
+    }
+
     /**
-     * 玩家进入房间, 系统给他分配一个座位
+     * 玩家进入房间, 返回当前房间的座位到玩家名称的映射关系
      * @param roomID
      * @return
      */
     @RequestMapping("/{roomID}/join")
-    public int join(@PathVariable int roomID){
+    public TreeMap<Integer, String> join(@PathVariable int roomID){
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        if(room != null) {
-            return room.join(userName);
-        }else{
-            return -1;
-        }
+        return room.join(userName);
     }
 
     /**
@@ -113,16 +123,6 @@ public class ONKController{
         room.setReady(userName, ready);
     }
 
-//    /**
-//     * 开启新的游戏//所有玩家都准备后自动开始
-//     * @param roomID
-//     */
-//    @RequestMapping("/{roomID}/new")
-//    public void newGame(@PathVariable int roomID){
-//        Room room = idRoomMap.get(roomID);
-//        room.newGame();
-//    }
-
     /**
      * 捣蛋鬼换牌
      * @param roomID
@@ -131,6 +131,7 @@ public class ONKController{
      */
     @RequestMapping("/{roomID}/troublemaker/exchange/{seat1}/{seat2}")
     public void exchangeCard(@PathVariable int roomID, @PathVariable int seat1, @PathVariable int seat2){
+        System.out.println("troublemaker exchange card: " + seat1 + ", " + seat2);
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.troublemakerExchangeCard(userName, seat1, seat2);
@@ -208,6 +209,12 @@ public class ONKController{
         Room room = idRoomMap.get(roomID);
         room.vote(userName, seat);
     }
+
+//    @Scheduled(fixedRate = 2000)
+//    public void stat() {
+//        simpMessagingTemplate.convertAndSend(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC, "Scheduled...");
+//        System.out.println(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "\tScheduled...");
+//    }
 
     private String getCurrentUserName(){
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext()
