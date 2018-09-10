@@ -113,15 +113,15 @@ public class ONKController{
         room.setReady(userName, ready);
     }
 
-    /**
-     * 开启新的游戏
-     * @param roomID
-     */
-    @RequestMapping("/{roomID}/new")
-    public void newGame(@PathVariable int roomID){
-        Room room = idRoomMap.get(roomID);
-        room.newGame();
-    }
+//    /**
+//     * 开启新的游戏//所有玩家都准备后自动开始
+//     * @param roomID
+//     */
+//    @RequestMapping("/{roomID}/new")
+//    public void newGame(@PathVariable int roomID){
+//        Room room = idRoomMap.get(roomID);
+//        room.newGame();
+//    }
 
     /**
      * 捣蛋鬼换牌
