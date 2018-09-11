@@ -29,5 +29,11 @@ public class XskrMessage {
         return entity;
     }
 
-
+    @Override
+    public String toString() {
+        return "XskrMessage{" +
+                "message='" + message + '\'' +
+                ", entity=" + entity +
+                '}';
+    }
 }

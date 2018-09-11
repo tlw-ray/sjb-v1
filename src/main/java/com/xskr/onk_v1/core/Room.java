@@ -186,6 +186,8 @@ public class Room {
      */
     private void newGame(){
         logger.debug("newGame()");
+        XskrMessage xskrMessage = new XskrMessage("新一局开始了！", ClientAction.LOCK_READY_ACTION);
+        sendMessage(xskrMessage);
 
         Deck deck = new Deck(cards);
 
@@ -254,21 +256,27 @@ public class Room {
             Player player = entry.getValue();
             if(player != null) {
                 String message;
+                ClientAction clientAction = null;
                 if(player == singleWolf){
                     message = String.format("请输入1-3中的一个数字，来查看牌垛中对应的纸牌");
+                    clientAction = ClientAction.SINGLE_WOLF_ACTION;
                 }else if (player == seer) {
                     message = String.format("请输入1-3中的两个数字来查看的牌垛中对应的纸牌，或者输入所有玩家(%s)的座位号之一，逗号分隔。", 1, playerSeatRange);
+                    clientAction = ClientAction.SEER_ACTION;
                 }else if(player == robber){
                     message = String.format("请输入所有玩家(%s)的座位号之一，查看并交换该身份。", playerSeatRange);
+                    clientAction = ClientAction.ROBBER_ACTION;
                 }else if(player == troublemaker){
                     message = String.format("请输入除您(%s)之外两个玩家(%s)的座位号，交换他们的身份。", player.getSeat(), playerSeatRange);
+                    clientAction = ClientAction.TROUBLEMAKER_ACTION;
                 }else if(player == drunk){
                     message = String.format("请输入牌垛中三张纸牌1-3中的一个号码，与之交换身份卡。");
+                    clientAction = ClientAction.DRUNK_ACTION;
                 }else{
                     message = "所有玩家行动完成后，系统会给出关于您身份的进一步提示信息。";
                 }
                 //向玩家发送提示信息
-                XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。", player.getCard().getDisplayName()), null);
+                XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。", player.getCard().getDisplayName()), clientAction);
                 XskrMessage xskrMessage2 = new XskrMessage(message, null);
                 sendMessage(player, xskrMessage1);
                 sendMessage(player, xskrMessage2);
@@ -445,7 +453,7 @@ public class Room {
                 //更新缓存
                 cardPlayerMap.put(player.getCard(), player);
                 cardPlayerMap.put(robber.getCard(), robber);
-                String message = String.format("粗暴的抢夺了%s号玩家'%s'的身份牌，并将自己的身份塞给了他，冷静下来看到上面赫然写着%s。",
+                String message = String.format("粗暴的抢夺了%s号玩家'%s'的身份牌，并将自己的身份塞给了他，冷静下来看到上面写着%s。",
                         player.getSeat(), player.getName(), swapCard);
                 XskrMessage xskrMessage = new XskrMessage(message, null);
                 sendMessage(robber, xskrMessage);
@@ -485,7 +493,7 @@ public class Room {
                 XskrMessage xskrMessage = new XskrMessage(message, null);
                 sendMessage(insomniac, xskrMessage);
             }
-            sendMessage(new XskrMessage("进行三轮讨论后请投票。", null));
+            sendMessage(new XskrMessage("进行三轮讨论后请投票。", ClientAction.VOTE_ACTION));
         }
     }
 
@@ -640,9 +648,8 @@ public class Room {
             appendPlayer(reportBuilder, defeatCardSet);
         }
 
-
         //广播消息
-        sendMessage(new XskrMessage(reportBuilder.toString(), null));
+        sendMessage(new XskrMessage(reportBuilder.toString(), ClientAction.UNLOCK_READY_ACTION));
 
         //解除所有玩家的准备状态，本局游戏结束
         for(Player player:players){
@@ -677,7 +684,6 @@ public class Room {
         robberSnatchSeat = seat;
         attemptNightAction();
     }
-
     //狼人验牌
     public void singleWolfCheckDeck(String userName, int deck){
         logger.debug("singleWolfCheckDeck(userName = {}, deck = {})", userName, deck);

@@ -1,0 +1,7 @@
+package com.xskr.onk_v1.core;
+//用于告知客户端行动身份特征
+public enum ClientAction {
+    SINGLE_WOLF_ACTION, DRUNK_ACTION, ROBBER_ACTION, SEER_ACTION, TROUBLEMAKER_ACTION,
+    VOTE_ACTION,
+    LOCK_READY_ACTION, UNLOCK_READY_ACTION
+}
