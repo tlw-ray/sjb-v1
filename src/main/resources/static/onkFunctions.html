@@ -93,8 +93,8 @@
                     url: '/onk/' + $('#room_id_input').val() + '/join',
                     Accept: 'application/json',
                     contentType: 'application/json',
-                    success: function(players){
-                        console.log("seat at: " + JSON.stringify(players))
+                    success: function(room){
+                        console.log("join room: " + JSON.stringify(room))
                     }, error: function(ex){
                         console.log(ex)
                     }

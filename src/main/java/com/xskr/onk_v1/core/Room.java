@@ -1,6 +1,7 @@
 package com.xskr.onk_v1.core;
 
 import com.alibaba.fastjson.JSON;
+import com.xskr.common.XskrMessage;
 import com.xskr.onk_v1.ONK_WebSocketMessageBrokerConfigurer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,9 @@ public class Room {
                         namePlayerMap.put(playerName, player);
                         player.setSeat(i);
                         players.add(player);
+                        String messageContent = String.format("%s加入房间。", player.getName());
+                        XskrMessage xskrMessage = new XskrMessage(messageContent, player);
+                        sendMessage(xskrMessage);
                         break;
                     }
                 }
@@ -264,8 +268,10 @@ public class Room {
                     message = "所有玩家行动完成后，系统会给出关于您身份的进一步提示信息。";
                 }
                 //向玩家发送提示信息
-                sendMessage(player, String.format("您的初始身份是%s。", player.getCard().getDisplayName()));
-                sendMessage(player, message);
+                XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。", player.getCard().getDisplayName()), null);
+                XskrMessage xskrMessage2 = new XskrMessage(message, null);
+                sendMessage(player, xskrMessage1);
+                sendMessage(player, xskrMessage2);
             }
         }
     }
@@ -365,12 +371,15 @@ public class Room {
             //狼的回合
             if(singleWolf != null){
                 //场面上是一头孤狼
-                sendMessage(singleWolf, String.format("看到桌面牌垛中第%s张牌是: %s", singleWolfCheckDeck, tableDeck.get(singleWolfCheckDeck).getDisplayName()));
+                XskrMessage message = new XskrMessage(String.format("看到桌面牌垛中第%s张牌是: %s", singleWolfCheckDeck, tableDeck.get(singleWolfCheckDeck).getDisplayName()), null);
+                sendMessage(singleWolf, message);
             }else if(wolf1 != null && wolf2 != null){
                 //有两个狼玩家
                 String messageTemplate = "看到狼人伙伴%s号玩家'%s'看向你，露出了狡黠的目光。";
-                sendMessage(wolf1, String.format(messageTemplate, wolf2.getSeat(), wolf2.getName()));
-                sendMessage(wolf2, String.format(messageTemplate, wolf1.getSeat(), wolf1.getName()));
+                XskrMessage wolf1Message = new XskrMessage(String.format(messageTemplate, wolf2.getSeat(), wolf2.getName()), null);
+                XskrMessage wolf2Message = new XskrMessage(String.format(messageTemplate, wolf1.getSeat(), wolf1.getName()), null);
+                sendMessage(wolf1, wolf1Message);
+                sendMessage(wolf2, wolf2Message);
             }else if(wolf1 == null && wolf2 == null){
                 //场面上没有狼，不需要给任何狼发消息
             }
@@ -390,20 +399,23 @@ public class Room {
                     //无狼
                     message = "天哪，竟然一条狼也没有。";
                 }
-                sendMessage(minion, message);
+                XskrMessage xskrMessage = new XskrMessage(message, null);
+                sendMessage(minion, xskrMessage);
             }
 
             // 守夜人的回合
             if(meson1 == null && meson2 != null){
                 //单守夜
-                sendMessage(meson2, "发现竟然只有自己站在漆黑的夜里。");
+                sendMessage(meson2, new XskrMessage("发现竟然只有自己站在漆黑的夜里。", null));
             }else if(meson1 != null && meson2 == null){
-                sendMessage(meson1, "发现竟然只有自己站在漆黑的夜里。");
+                sendMessage(meson1, new XskrMessage("发现竟然只有自己站在漆黑的夜里。", null));
             }else if(meson1 != null && meson2 != null){
                 //双守夜
                 String messageTemplate = "看到另一位守夜人，%s号玩家'%s'正目光炯炯有神的望着你。";
-                sendMessage(meson1, String.format(messageTemplate, meson2.getSeat(), meson2.getName()));
-                sendMessage(meson2, String.format(messageTemplate, meson1.getSeat(), meson1.getName()));
+                XskrMessage meson1Message = new XskrMessage(String.format(messageTemplate, meson2.getSeat(), meson2.getName()), null);
+                XskrMessage meson2Message = new XskrMessage(String.format(messageTemplate, meson1.getSeat(), meson1.getName()), null);
+                sendMessage(meson1, meson1Message);
+                sendMessage(meson2, meson2Message);
             }else{
                 //无守夜
             }
@@ -421,7 +433,8 @@ public class Room {
                     Card card2 = tableDeck.get(seerCheckDeck2);
                     message = String.format("翻开桌上第%s和%s张卡牌，看到了身份卡%s和%s安静的躺在那里。", seerCheckDeck1, seerCheckDeck2, card1, card2);
                 }
-                sendMessage(seer, message);
+                XskrMessage xskrMessage = new XskrMessage(message, null);
+                sendMessage(seer, xskrMessage);
             }
 
             if(robber != null){
@@ -434,7 +447,8 @@ public class Room {
                 cardPlayerMap.put(robber.getCard(), robber);
                 String message = String.format("粗暴的抢夺了%s号玩家'%s'的身份牌，并将自己的身份塞给了他，冷静下来看到上面赫然写着%s。",
                         player.getSeat(), player.getName(), swapCard);
-                sendMessage(robber, message);
+                XskrMessage xskrMessage = new XskrMessage(message, null);
+                sendMessage(robber, xskrMessage);
             }
             if(troublemaker != null){
                 Player player1 = seatPlayerMap.get(troublemakerExchangeSeat1);
@@ -447,7 +461,8 @@ public class Room {
                 cardPlayerMap.put(player2.getCard(), player2);
                 String message = String.format("成功交换了%s号玩家'%s'和%s号玩家'%s'的身份牌，他们发现了一定会暴跳如雷，嘿嘿嘿。",
                         player1.getSeat(), player1.getName(), player2.getSeat(), player2.getName());
-                sendMessage(troublemaker, message);
+                XskrMessage xskrMessage = new XskrMessage(message, null);
+                sendMessage(troublemaker, xskrMessage);
             }
             if(drunk != null){
                 Card swapCard = tableDeck.get(drunkExchangeDeck);
@@ -457,7 +472,8 @@ public class Room {
                 cardPlayerMap.put(drunk.getCard(), drunk);
                 cardPlayerMap.remove(swapCard, drunk);
                 String message = String.format("喝的醉醺醺，随手把身份卡插入牌垛里的第%s张，并把它原有的那张抽了出来带在身上，还没来得及看就呼呼睡着了。", drunkExchangeDeck);
-                sendMessage(drunk, message);
+                XskrMessage xskrMessage = new XskrMessage(message, null);
+                sendMessage(drunk, xskrMessage);
             }
             if(insomniac != null){
                 String message;
@@ -466,9 +482,10 @@ public class Room {
                 }else{
                     message = String.format("睡不着觉又看身份牌，它竟然变成了%s。难道，刚才真的睡着了？", insomniac.getCard().getDisplayName());
                 }
-                sendMessage(insomniac, message);
+                XskrMessage xskrMessage = new XskrMessage(message, null);
+                sendMessage(insomniac, xskrMessage);
             }
-            sendMessage("进行三轮讨论后请投票。");
+            sendMessage(new XskrMessage("进行三轮讨论后请投票。", null));
         }
     }
 
@@ -568,10 +585,10 @@ public class Room {
                     report.append(votedPlayer.getName());
                     report.append("'\n");
                 }
-                sendMessage(report.toString());
+                sendMessage(new XskrMessage(report.toString(), null));
                 //提示猎人由他独立投票
                 Player hunter = cardPlayerMap.get(Card.HUNTER);
-                sendMessage(hunter, "请投票");
+                sendMessage(hunter, new XskrMessage("请投票", null));
                 return ;
             }else if(voteStat.voted(Card.WEREWOLF_1) || voteStat.voted(Card.WEREWOLF_2)){
                 victoryCamp.add(Camp.VILLAGER);
@@ -625,7 +642,7 @@ public class Room {
 
 
         //广播消息
-        sendMessage(reportBuilder.toString());
+        sendMessage(new XskrMessage(reportBuilder.toString(), null));
 
         //解除所有玩家的准备状态，本局游戏结束
         for(Player player:players){
@@ -697,17 +714,17 @@ public class Room {
         Set<Camp> victoryCampSet = new TreeSet();
         Set<Camp> defeatCampSet = new TreeSet();
         if(player.getCard() == Card.TANNER){
-            sendMessage("皮匠获胜");
+            sendMessage(new XskrMessage("皮匠获胜", null));
             victoryCampSet.add(Camp.TANNER);
             defeatCampSet.add(Camp.WOLF);
             defeatCampSet.add(Camp.VILLAGER);
         }else if(player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2){
-            sendMessage("村民阵营获胜");
+            sendMessage(new XskrMessage("村民阵营获胜", null));
             victoryCampSet.add(Camp.VILLAGER);
             defeatCampSet.add(Camp.WOLF);
             defeatCampSet.add(Camp.TANNER);
         }else{
-            sendMessage("狼人阵营获胜");
+            sendMessage(new XskrMessage("狼人阵营获胜", null));
             victoryCampSet.add(Camp.WOLF);
             defeatCampSet.add(Camp.VILLAGER);
             defeatCampSet.add(Camp.TANNER);
@@ -731,14 +748,14 @@ public class Room {
         this.simpMessagingTemplate = simpMessagingTemplate;
     }
 
-    private void sendMessage(Player player, String message){
+    private void sendMessage(Player player, XskrMessage message){
         String send = String.format("To %s: %s", player.getName(), message);
         String router = ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "/" + player.getName();
         System.out.println(router + send);
         simpMessagingTemplate.convertAndSend(router, message);
     }
 
-    private void sendMessage(String message){
+    private void sendMessage(XskrMessage message){
         String router = ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC;
         System.out.println(router + "\t" + message);
         simpMessagingTemplate.convertAndSend(router, message);

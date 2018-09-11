@@ -1,10 +1,8 @@
 package com.xskr.onk_v1;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Player;
 import com.xskr.onk_v1.core.Room;
-import com.xskr.sjb_v1.model.DataPack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +47,18 @@ public class ONKController{
         return room;
     }
 
+    /**
+     * 玩家进入房间, 返回当前房间的座位到玩家名称的映射关系
+     * @param roomID
+     * @return
+     */
+    @RequestMapping("/{roomID}/join")
+    public TreeMap<Integer, String> join(@PathVariable int roomID){
+        String userName = getCurrentUserName();
+        Room room = idRoomMap.get(roomID);
+        return room.join(userName);
+    }
+
     @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Room getRoom(@PathVariable int roomID){
         return idRoomMap.get(roomID);
@@ -77,18 +87,6 @@ public class ONKController{
     @RequestMapping(path="/who")
     public String who(){
         return getCurrentUserName();
-    }
-
-    /**
-     * 玩家进入房间, 返回当前房间的座位到玩家名称的映射关系
-     * @param roomID
-     * @return
-     */
-    @RequestMapping("/{roomID}/join")
-    public TreeMap<Integer, String> join(@PathVariable int roomID){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        return room.join(userName);
     }
 
     /**
@@ -210,11 +208,13 @@ public class ONKController{
         room.vote(userName, seat);
     }
 
-//    @Scheduled(fixedRate = 2000)
-//    public void stat() {
-//        simpMessagingTemplate.convertAndSend(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC, "Scheduled...");
-//        System.out.println(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "\tScheduled...");
-//    }
+    @Scheduled(fixedRate = 2000)
+    public void stat() {
+        simpMessagingTemplate.convertAndSend(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC, "Scheduled...");
+        simpMessagingTemplate.convertAndSend(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "/tlw", "Scheduled...");
+        System.out.println(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "\tScheduled...");
+        System.out.println(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "/tlw\tScheduled TLW...");
+    }
 
     private String getCurrentUserName(){
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext()
