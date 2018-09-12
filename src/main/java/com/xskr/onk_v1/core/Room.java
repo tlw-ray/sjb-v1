@@ -134,12 +134,16 @@ public class Room {
             String message = String.format("玩家%s不在房间，无法设定准备状态。", playerName);
             throw new RuntimeException(message);
         }
-        for(Player player1:players){
-            if(!player1.isReady()){
-                return;
+        if(players.size() == getSeatCount()) {
+            for (Player player1 : players) {
+                if (!player1.isReady()) {
+                    return;
+                }
             }
+            newGame();
+        }else{
+            //人数未达到座位数游戏无法开始
         }
-        newGame();
     }
 
     public boolean sit(String playerName, int seat){
@@ -755,10 +759,11 @@ public class Room {
     }
 
     private void sendMessage(Player player, XskrMessage message){
-        String send = String.format("To %s: %s", player.getName(), message);
-        String router = ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "/" + player.getName();
-        System.out.println(router + send);
-        simpMessagingTemplate.convertAndSend(router, message);
+//        String router = ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC ;
+        String router = "/queue/notifications";// + player.getName() +"/onk";
+        System.out.println(router + '\t' + message);
+        simpMessagingTemplate.convertAndSendToUser(player.getName(), router, message);
+//        simpMessagingTemplate.convertAndSend(router, message);
     }
 
     private void sendMessage(XskrMessage message){

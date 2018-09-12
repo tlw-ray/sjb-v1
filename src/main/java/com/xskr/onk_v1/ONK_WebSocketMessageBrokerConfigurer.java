@@ -12,9 +12,11 @@ public class ONK_WebSocketMessageBrokerConfigurer implements WebSocketMessageBro
     public static final String ONK_PUBLIC = "/topic";
     public static final String ONK_END_POINT = "/onk/endpoint";
     @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker(ONK_PUBLIC);
-        config.setApplicationDestinationPrefixes("/onk");
+    public void configureMessageBroker(MessageBrokerRegistry registry) {
+        registry.enableSimpleBroker("/topic", "/user", "/queue");
+//        registry.enableStompBrokerRelay("/topic", "/user", "/queue");
+//        registry.setApplicationDestinationPrefixes("/onk");
+//        registry.setUserDestinationPrefix("/user");
     }
 
     @Override

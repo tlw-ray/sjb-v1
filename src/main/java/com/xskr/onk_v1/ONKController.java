@@ -208,13 +208,12 @@ public class ONKController{
         room.vote(userName, seat);
     }
 
-//    @Scheduled(fixedRate = 2000)
-//    public void stat() {
-//        simpMessagingTemplate.convertAndSend(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC, "Scheduled...");
-//        simpMessagingTemplate.convertAndSend(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "/tlw", "Scheduled...");
-//        System.out.println(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "\tScheduled...");
-//        System.out.println(ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC + "/tlw\tScheduled TLW...");
-//    }
+    @Scheduled(fixedRate = 2000)
+    public void stat() {
+//        simpMessagingTemplate.convertAndSend("/topic", "Public Message");//可以发送并接收成功
+        simpMessagingTemplate.convertAndSendToUser("dss", "/horray", "Private Message ...");
+        System.out.println("Send...");
+    }
 
     private String getCurrentUserName(){
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext()

@@ -16,25 +16,27 @@
                 type: 'GET',
                 Accept: 'application/json',
                 contentType: 'application/json',
-                success: function(name){
-                    $('#who_span').text(name)
+                success: function(userName){
+                    $('#who_span').text(userName)
+                    var roomID = $('#room_id_span').html()
+
                     var endpointURL = '/onk/endpoint'
-                    var privateTopicURL = '/topic/' + name
-                    console.log(privateTopicURL)
-                    var socket = new SockJS(endpointURL)
-                    var stompClient = Stomp.over(socket)
-                    stompClient.connect({}, function (frame) {
-                        stompClient.subscribe(privateTopicURL, function (message) {
+                    var endpoint1URL = '/onk1/endpoint'
+                    var publicTopicURL = '/topic'
+                    var privateChannelURL = '/queue/notifications'
+                    console.log(publicTopicURL)
+                    var socket1 = new SockJS(endpoint1URL)
+                    var stompClient1 = Stomp.over(socket1)
+                    stompClient1.connect({}, function(frame){
+                        stompClient1.subscribe(privateChannelURL, function(message){
                             var xskrMessage = JSON.parse(message.body)
                             showMessage(xskrMessage.message)
-
-                            var roomID = $('#room_id_span').html()
                             if(xskrMessage.entity == 'LOCK_READY_ACTION'){
                                 //游戏开始，锁定Ready勾选框
-                                $('#ready_input').enable(true)
+                                $('#ready_input').attr('disabled', true)
                             }else if(xskrMessage.entity == 'UNLOCK_READY_ACTION'){
                                 //游戏结束，放开Ready勾选框
-                                $('#ready_input').enable(false)
+                                $('#ready_input').enable('disabled', false)
                             }else if(xskrMessage.entity == 'SINGLE_WOLF_ACTION'){
                                 //TODO 设定牌垛的选项为可用，玩家选项为不可用，行动按钮的提交目标为孤狼行动
                                 console.log('single wolf action...')
@@ -95,6 +97,14 @@
                                     ajaxGet(playerActionURL)
                                 })
                             }
+                        })
+                    })
+                    var socket = new SockJS(endpointURL)
+                    var stompClient = Stomp.over(socket)
+                    stompClient.connect({}, function (frame) {
+                        stompClient.subscribe(publicTopicURL, function (message) {
+                            var xskrMessage = JSON.parse(message.body)
+                            showMessage(xskrMessage.message)
                         })
                     })
                 },

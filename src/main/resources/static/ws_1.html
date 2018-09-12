@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocketTest</title>
+    <script src="/webjars/jquery/jquery.min.js"></script>
+    <script src="/webjars/sockjs-client/sockjs.min.js"></script>
+    <script src="/webjars/stomp-websocket/stomp.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            //获得登陆用户信息，并建立WebSocket连接
+            var endpoint = '/onk/endpoint'
+            var topic = '/user/dss/horray'
+            var socket = new SockJS(endpoint)
+            var stompClient = Stomp.over(socket)
+            stompClient.connect({}, function (frame) {
+                stompClient.subscribe(topic, function (message) {
+                    console.log(message.body)
+                })
+            })
+        })
+    </script>
+</head>
+<body>
+
+</body>
+</html>
