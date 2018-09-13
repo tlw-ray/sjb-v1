@@ -35,6 +35,7 @@ public class SJB_Controller {
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
 
+    //TODO 改为AJAX调用
     @MessageMapping("/req")
     public void handle(Principal principal, String command){
         String playerName = principal.getName();

@@ -1,16 +1,13 @@
 package com.xskr.onk_v1;
 
-import com.xskr.common.XskrMessage;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Player;
 import com.xskr.onk_v1.core.Room;
-import com.xskr.onk_v1.vo.JoinInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -21,9 +18,10 @@ import java.util.*;
 @RequestMapping("/onk")
 public class ONKController{
 
+    private static int RoomID_Generator = 0;
+
     private Logger logger = LoggerFactory.getLogger(getClass());
 
-    private static int RoomID_Generator = 0;
     private Map<Integer, Room> idRoomMap = Collections.synchronizedMap(new TreeMap());
 
     @Autowired
@@ -55,20 +53,17 @@ public class ONKController{
      * @return
      */
     @RequestMapping("/{roomID}/join")
-    public JoinInfo join(@PathVariable int roomID){
+    public Room join(@PathVariable int roomID){
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        TreeMap<Integer, String> seatPlayerNameMap = room.join(userName);
-        JoinInfo joinInfo = new JoinInfo();
-        joinInfo.setPlayerName(userName);
-        joinInfo.setRoomID(roomID);
-        joinInfo.setSeatPlayerNameMap(seatPlayerNameMap);
-        return joinInfo;
+        room.join(userName);
+        return room;
     }
 
     @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Room getRoom(@PathVariable int roomID){
-        return idRoomMap.get(roomID);
+        Room room = idRoomMap.get(roomID);
+        return room;
     }
 
     /**
@@ -89,11 +84,6 @@ public class ONKController{
     public Set<Player> listPlayer(@PathVariable int roomID){
         Room room = idRoomMap.get(roomID);
         return room.getPlayers();
-    }
-
-    @RequestMapping(path="/who")
-    public String who(){
-        return getCurrentUserName();
     }
 
     /**
@@ -119,13 +109,16 @@ public class ONKController{
     }
 
     /**
-     * 玩家设定准备
+     * 玩家设定准备, 如果所有玩家均已准备则触发游戏开始
+     * @param roomID 房间ID
+     * @param ready 是否准备
+     * @return 服务端返回的该玩家准备状态
      */
     @RequestMapping("/{roomID}/ready/{ready}")
-    public void ready(@PathVariable int roomID, @PathVariable boolean ready){
+    public boolean ready(@PathVariable int roomID, @PathVariable boolean ready){
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.setReady(userName, ready);
+        return room.setReady(userName, ready);
     }
 
     /**
@@ -214,24 +207,6 @@ public class ONKController{
         Room room = idRoomMap.get(roomID);
         room.vote(userName, seat);
     }
-
-    @Scheduled(fixedRate = 2000)
-    public void stat() {
-//        simpMessagingTemplate.convertAndSend("/topic", "Public Message");//可以发送并接收成功
-        simpMessagingTemplate.convertAndSendToUser("tlw", "/queue/1", new XskrMessage("Private Queue TLW...", null));
-        simpMessagingTemplate.convertAndSendToUser("dss", "/queue/1", new XskrMessage("Private Queue DSS...", null));
-        simpMessagingTemplate.convertAndSend("/topic/1", new XskrMessage("Public Topic...", null));
-        System.out.println("Send...");
-    }
-//    @Scheduled(fixedRate = 2000)
-//    public void stat() {
-//        //向指定用户发送点对点消息
-//        simpMessagingTemplate.convertAndSendToUser("dss", "/queue/1", "Private Message to dss ...");
-//        simpMessagingTemplate.convertAndSendToUser("tlw", "/queue/1", "Private Message to tlw ...");
-//        //发送广播消息
-//        simpMessagingTemplate.convertAndSend("/topic/1", "Public Message...");
-//        System.out.println("Send...");
-//    }
 
     private String getCurrentUserName(){
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext()
