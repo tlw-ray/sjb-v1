@@ -757,19 +757,16 @@ public class Room {
     public void setSimpMessagingTemplate(SimpMessagingTemplate simpMessagingTemplate) {
         this.simpMessagingTemplate = simpMessagingTemplate;
     }
-
     private void sendMessage(Player player, XskrMessage message){
-//        String router = ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC ;
-        String router = "/queue/notifications";// + player.getName() +"/onk";
-        System.out.println(router + '\t' + message);
-        simpMessagingTemplate.convertAndSendToUser(player.getName(), router, message);
-//        simpMessagingTemplate.convertAndSend(router, message);
+        String roomWebSocketQueue = ONK_WebSocketMessageBrokerConfigurer.QUEUE + "/" + id;
+        System.out.println(roomWebSocketQueue + '\t' + message);
+        simpMessagingTemplate.convertAndSendToUser(player.getName(), roomWebSocketQueue, message);
     }
 
     private void sendMessage(XskrMessage message){
-        String router = ONK_WebSocketMessageBrokerConfigurer.ONK_PUBLIC;
-        System.out.println(router + "\t" + message);
-        simpMessagingTemplate.convertAndSend(router, message);
+        String roomWebSocketTopic = ONK_WebSocketMessageBrokerConfigurer.TOPIC + "/" + id;
+        System.out.println(roomWebSocketTopic + "\t" + message);
+        simpMessagingTemplate.convertAndSend(roomWebSocketTopic, message);
     }
 
     public int getID() {

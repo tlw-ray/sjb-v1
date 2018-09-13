@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Chat</title>
+    <script src="/webjars/jquery/jquery.min.js"></script>
+    <script src="/webjars/sockjs-client/sockjs.min.js"></script>
+    <script src="/webjars/stomp-websocket/stomp.min.js"></script>
+    <script>
+        $(document).ready(function(e){
+            //收取Queue和Topic消息可以共享EndPoint
+            var endpoint = '/endpoint'
+            var sockQueue = new SockJS(endpoint)
+            var stompQueue = Stomp.over(sockQueue);
+            stompQueue.connect('guest', 'guest', function(frame){
+                console.log(frame)
+                //注意: 收取指定用户的消息必须/user/queue/... 这种写法
+                stompQueue.subscribe('/user/queue/1', handleNotification)
+            });
+            var sockTopic = new SockJS(endpoint)
+            var stompTopic = Stomp.over(sockTopic)
+            stompTopic.connect('guest', 'guest', function(frame){
+                console.log(frame)
+                stompTopic.subscribe('/topic/1', handleTopic)
+            });
+        })
+        function handleNotification(message){
+            $('#queue_div').append('Received: ' + message.body + '<br/>')
+        }
+        function handleTopic(message){
+            $('#topic_div').append('Received: ' + message.body + '<br>')
+        }
+    </script>
+</head>
+<body>
+<table>
+    <thead>
+    <tr>
+        <td>
+            接收点对点消息:
+        </td>
+        <td>
+            接收广播消息:
+        </td>
+        <td>
+            发送点对点消息:（没有用到,仅仅通过stomp实现消息推送，消息发送用的http)<br>
+            发送广播消息:(没有用到,仅仅通过stomp实现消息推送，消息发送用的http)
+        </td>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>
+            <div id="queue_div"></div>
+        </td>
+        <td>
+            <div id="topic_div"></div>
+        </td>
+        <td>
+        </td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

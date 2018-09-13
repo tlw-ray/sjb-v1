@@ -1,8 +1,10 @@
 package com.xskr.onk_v1;
 
+import com.xskr.common.XskrMessage;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Player;
 import com.xskr.onk_v1.core.Room;
+import com.xskr.onk_v1.vo.JoinInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,10 +55,15 @@ public class ONKController{
      * @return
      */
     @RequestMapping("/{roomID}/join")
-    public TreeMap<Integer, String> join(@PathVariable int roomID){
+    public JoinInfo join(@PathVariable int roomID){
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        return room.join(userName);
+        TreeMap<Integer, String> seatPlayerNameMap = room.join(userName);
+        JoinInfo joinInfo = new JoinInfo();
+        joinInfo.setPlayerName(userName);
+        joinInfo.setRoomID(roomID);
+        joinInfo.setSeatPlayerNameMap(seatPlayerNameMap);
+        return joinInfo;
     }
 
     @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -211,9 +218,20 @@ public class ONKController{
     @Scheduled(fixedRate = 2000)
     public void stat() {
 //        simpMessagingTemplate.convertAndSend("/topic", "Public Message");//可以发送并接收成功
-        simpMessagingTemplate.convertAndSendToUser("dss", "/horray", "Private Message ...");
+        simpMessagingTemplate.convertAndSendToUser("tlw", "/queue/1", new XskrMessage("Private Queue TLW...", null));
+        simpMessagingTemplate.convertAndSendToUser("dss", "/queue/1", new XskrMessage("Private Queue DSS...", null));
+        simpMessagingTemplate.convertAndSend("/topic/1", new XskrMessage("Public Topic...", null));
         System.out.println("Send...");
     }
+//    @Scheduled(fixedRate = 2000)
+//    public void stat() {
+//        //向指定用户发送点对点消息
+//        simpMessagingTemplate.convertAndSendToUser("dss", "/queue/1", "Private Message to dss ...");
+//        simpMessagingTemplate.convertAndSendToUser("tlw", "/queue/1", "Private Message to tlw ...");
+//        //发送广播消息
+//        simpMessagingTemplate.convertAndSend("/topic/1", "Public Message...");
+//        System.out.println("Send...");
+//    }
 
     private String getCurrentUserName(){
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext()
