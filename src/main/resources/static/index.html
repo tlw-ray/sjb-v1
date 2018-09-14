@@ -111,7 +111,7 @@
                         console.log('call: ' + url + '\treturn: ' + data)
                     },
                     error:function(ex){
-                        console.log(ex);
+                        console.log(ex)
                     }
                 });
             })
@@ -132,7 +132,7 @@
                             needRefreshPlayerStatus = false;
                         },
                         error:function(ex){
-                            console.log(ex);
+                            console.log(ex)
                         }
                     });
                 }
@@ -164,7 +164,7 @@
                 contentType: 'application/json',
                 success: function(roomInfo){
                     console.log("room information: " + JSON.stringify(roomInfo))
-                    var players = roomInfo['players'];
+                    var players = roomInfo['players']
                     refreshPlayerList(players)
                     var playerName = roomInfo['playerName']
                     $('#who_span').text(playerName)
@@ -180,7 +180,7 @@
                             if(xskrMessage.action == 'SINGLE_WOLF_ACTION'){
                                 //TODO 设定牌垛的选项为可用，玩家选项为不可用，行动按钮的提交目标为孤狼行动
                                 console.log('single wolf action...')
-                                $("#action_button").prop("onclick", null).off("click");
+                                $('#action_button').prop('onclick', null).off('click');
                                 $('#action_button').click(function(){
                                     var selectedDecks = $("#deck_list_div input:checked").map(function(){return this.value}).get()
                                     playerActionURL = '/onk/' + roomID + '/singleWolf/check/' + selectedDecks[0]
@@ -278,9 +278,9 @@
 
         function disconnect() {
             if (stompClient !== null) {
-                stompClient.disconnect();
+                stompClient.disconnect()
             }
-            console.log("Disconnected");
+            console.log("Disconnected")
         }
 
         function showMessage(message){
@@ -298,7 +298,7 @@
                     return data
                 },
                 error:function(ex){
-                    console.log(ex);
+                    console.log(ex)
                 }
             });
         }
