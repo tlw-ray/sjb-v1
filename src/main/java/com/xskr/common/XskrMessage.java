@@ -8,15 +8,12 @@ public class XskrMessage {
     //要执行的指令
     private ClientAction action;
     //要传递的数据
-    private Object entity;
+    private Object data;
 
-    public XskrMessage() {
-    }
-
-    public XskrMessage(String message, ClientAction action, Object entity) {
+    public XskrMessage(String message, ClientAction action, Object data) {
         this.message = message;
         this.action = action;
-        this.entity = entity;
+        this.data = data;
     }
 
     public ClientAction getAction() {
@@ -31,16 +28,16 @@ public class XskrMessage {
         this.message = message;
     }
 
-    public void setEntity(Object entity) {
-        this.entity = entity;
+    public void setData(Object data) {
+        this.data = data;
     }
 
     public String getMessage() {
         return message;
     }
 
-    public Object getEntity() {
-        return entity;
+    public Object getData() {
+        return data;
     }
 
     @Override
@@ -48,7 +45,7 @@ public class XskrMessage {
         return "XskrMessage{" +
                 "message='" + message + '\'' +
                 ", action='" + action + '\'' +
-                ", entity=" + entity +
+                ", data=" + data +
                 '}';
     }
 }

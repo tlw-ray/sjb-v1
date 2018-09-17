@@ -42,15 +42,15 @@ public class TestRoom {
         if(singleWolf != null){
             room.singleWolfCheckDeck(singleWolf.getName(), 0);
         }
-        Player seer = room.getPlayerByCard(Card.SEER);
+        Player seer = room.getPlayerByInitializeCard(Card.SEER);
         if(seer != null){
             room.seerCheckDeck(seer.getName(), 1, 2);
         }
-        Player robber = room.getPlayerByCard(Card.ROBBER);
+        Player robber = room.getPlayerByInitializeCard(Card.ROBBER);
         if(robber != null){
             room.robberSnatchCard(robber.getName(), 5);
         }
-        Player troublemaker = room.getPlayerByCard(Card.TROUBLEMAKER);
+        Player troublemaker = room.getPlayerByInitializeCard(Card.TROUBLEMAKER);
         if(troublemaker != null){
             int seat1, seat2;
             if(troublemaker.getSeat() == 0){
@@ -65,7 +65,7 @@ public class TestRoom {
             }
             room.troublemakerExchangeCard(troublemaker.getName(), seat1, seat2);
         }
-        Player drunk = room.getPlayerByCard(Card.DRUNK);
+        Player drunk = room.getPlayerByInitializeCard(Card.DRUNK);
         if(drunk != null){
             room.drunkExchangeCard(drunk.getName(), 1);
         }
@@ -75,8 +75,8 @@ public class TestRoom {
         System.out.println("--------模拟投票-------");
 
         //判定狼玩家位置，供后面投票使用
-        Player wolf1 = room.getPlayerByCard(Card.WEREWOLF_1);
-        Player wolf2 = room.getPlayerByCard(Card.WEREWOLF_2);
+        Player wolf1 = room.getPlayerByInitializeCard(Card.WEREWOLF_1);
+        Player wolf2 = room.getPlayerByInitializeCard(Card.WEREWOLF_2);
         Player wolf = null;
         if(wolf1 != null){
             wolf = wolf1;
@@ -85,7 +85,7 @@ public class TestRoom {
         }
 
         //模拟情况1: 仅有皮匠被投出: 皮匠获胜
-        Player tanner = room.getPlayerByCard(Card.TANNER);
+        Player tanner = room.getPlayerByInitializeCard(Card.TANNER);
         System.out.println(tanner);
         if(tanner != null) {
             for (Player player : room.getPlayers()) {
@@ -97,7 +97,7 @@ public class TestRoom {
         room.clearVote();
 
         //模拟情况2: 猎人被投出
-        Player hunter = room.getPlayerByCard(Card.HUNTER);
+        Player hunter = room.getPlayerByInitializeCard(Card.HUNTER);
         if(hunter != null){
             for(Player player:room.getPlayers()){
                 player.setVoteSeat(hunter.getSeat());
@@ -136,7 +136,7 @@ public class TestRoom {
             }
             room.clearVote();
             //3.2 有狼且爪牙被投出: 狼获胜
-            Player minion = room.getPlayerByCard(Card.MINION);
+            Player minion = room.getPlayerByInitializeCard(Card.MINION);
             if(minion != null){
                 for(Player player:room.getPlayers()){
                     room.vote(player.getName(), minion.getSeat());

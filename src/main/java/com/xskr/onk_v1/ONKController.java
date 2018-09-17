@@ -1,5 +1,6 @@
 package com.xskr.onk_v1;
 
+import com.xskr.common.XskrMessage;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Player;
 import com.xskr.onk_v1.core.Room;
@@ -26,6 +27,11 @@ public class ONKController{
 
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
+
+    @RequestMapping(path = "/hello")
+    public String hello(){
+        return "Hello";
+    }
 
     /**
      * 创建房间，需要传入该房间支持的角色列表
@@ -57,34 +63,37 @@ public class ONKController{
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.join(userName);
+        room.setCurrentPlayerName(userName);
         return room;
     }
 
+    //TODO 注意: 所有返回Room的方法均导致玩家手牌信息的泄露
     @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Room getRoom(@PathVariable int roomID){
         Room room = idRoomMap.get(roomID);
+        room.setCurrentPlayerName(getCurrentUserName());
         return room;
     }
 
-    /**
-     * 列举现有的房间
-     * @return
-     */
-    @RequestMapping(path="/rooms")
-    public Set<Integer> listRoom(){
-        return idRoomMap.keySet();
-    }
+//    /**
+//     * 列举现有的房间
+//     * @return
+//     */
+//    @RequestMapping(path="/rooms")
+//    public Set<Integer> listRoom(){
+//        return idRoomMap.keySet();
+//    }
 
-    /**
-     * 列举房间内现有的玩家信息
-     * @param roomID
-     * @return
-     */
-    @RequestMapping(path="/{roomID}/players")
-    public Set<Player> listPlayer(@PathVariable int roomID){
-        Room room = idRoomMap.get(roomID);
-        return room.getPlayers();
-    }
+//    /**
+//     * 列举房间内现有的玩家信息
+//     * @param roomID
+//     * @return
+//     */
+//    @RequestMapping(path="/{roomID}/players")
+//    public Set<Player> listPlayer(@PathVariable int roomID){
+//        Room room = idRoomMap.get(roomID);
+//        return room.getPlayers();
+//    }
 
     /**
      * 玩家离开
@@ -119,6 +128,13 @@ public class ONKController{
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         return room.setReady(userName, ready);
+    }
+
+    @RequestMapping("/{roomID}/keyMessages")
+    public List<String> getKeyMessages(@PathVariable int roomID){
+        String userName = getCurrentUserName();
+        Room room = idRoomMap.get(roomID);
+        return room.getKeyMessages(userName);
     }
 
     /**
@@ -206,6 +222,13 @@ public class ONKController{
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.vote(userName, seat);
+    }
+
+    @RequestMapping("/{roomID}/hunter/vote/{seat}")
+    public void hunterVote(@PathVariable int roomID, @PathVariable int seat){
+        String userName = getCurrentUserName();
+        Room room = idRoomMap.get(roomID);
+        room.hunterVote(userName, seat);
     }
 
     private String getCurrentUserName(){

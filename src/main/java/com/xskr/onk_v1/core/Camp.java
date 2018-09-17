@@ -13,6 +13,16 @@ public enum Camp {
                 || card == Card.MINION;
     }
 
+    public static Camp getCamp(Card card){
+        if(isTannerCamp(card)){
+            return VILLAGER;
+        }else if(isWolfCamp(card)){
+            return WOLF;
+        }else{
+            return VILLAGER;
+        }
+    }
+
     public static boolean isVillagerCamp(Card card){
         return !isWolfCamp(card) && !isTannerCamp(card);
     }

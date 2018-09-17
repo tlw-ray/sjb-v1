@@ -28,10 +28,11 @@ public class Room {
 
     // 玩家姓名到玩家的索引
     private Map<String, Player> namePlayerMap;
-    // 发牌后卡牌到玩家索引
-    private Map<Card, Player> cardPlayerMap;
+    // 发牌后卡牌到玩家索引(原始身份)
+    private Map<Card, Player> initializeCardPlayerMap;
     // 玩家就坐后座位号到玩家索引
     private Map<Integer, Player> seatPlayerMap;
+    // 本局做过的操作
 
     // 玩家夜间操作
     private Integer singleWolfCheckDeck;
@@ -50,6 +51,15 @@ public class Room {
     //游戏是否处于开始状态，如果是就不能再进行准备切换
     private boolean gaming = false;
 
+    //用于客户端识别当前登录用户, TODO 应由框架引入
+    private String currentPlayerName;
+    //存放客户端的关键信息，供断线重连后查看
+    private Map<Player, List<XskrMessage>> playerMessagesMap;
+    //存放玩家最后一次行动信息，供断线重连后操作
+    private Map<Player, ClientAction> playerClientActionMap;
+    //存放单个玩家最后一次行动信息
+    private ClientAction clientAction;
+
     public Room(int id, List<Card> cardList){
         logger.debug("Room(cardList = {})", Arrays.toString(cardList.toArray()));
         this.id = id;
@@ -58,8 +68,10 @@ public class Room {
         this.players = new TreeSet();
 
         this.seatPlayerMap = new HashMap(seatCount);
-        this.cardPlayerMap = new HashMap(seatCount);
         this.namePlayerMap = new HashMap(seatCount);
+        this.initializeCardPlayerMap = new HashMap(seatCount);
+        this.playerMessagesMap = new HashMap(seatCount);
+        this.playerClientActionMap = new HashMap(seatCount);
     }
 
     public int getSeatCount(){
@@ -111,7 +123,7 @@ public class Room {
             players.remove(player);
             //TODO 需要清理索引,用户在游戏进行时离开会导致游戏无法继续
             namePlayerMap.remove(playerName);
-            cardPlayerMap.remove(player.getCard());
+            initializeCardPlayerMap.remove(player.getCard());
             seatPlayerMap.remove(player.getSeat());
         }
     }
@@ -190,8 +202,27 @@ public class Room {
         return namePlayerMap.get(name);
     }
 
+    /**
+     * 根据初始卡牌查询用户
+     * @param card
+     * @return
+     */
+    public Player getPlayerByInitializeCard(Card card){
+        return initializeCardPlayerMap.get(card);
+    }
+
+    /**
+     * 根据卡牌查询用户，卡牌是夜晚行动过后被交换过的
+     * @param card
+     * @return
+     */
     public Player getPlayerByCard(Card card){
-        return cardPlayerMap.get(card);
+        for(Player player:players){
+            if(player.getCard() == card){
+                return player;
+            }
+        }
+        return null;
     }
 
     public Player getPlayerBySeat(int seat){
@@ -248,11 +279,11 @@ public class Room {
         deck.shuffle(500);
 
         //为所有人发牌，并建立牌到玩家的索引
-        cardPlayerMap.clear();
+        initializeCardPlayerMap.clear();
         for(Player player:players){
             Card card = deck.deal();
             player.setCard(card);
-            cardPlayerMap.put(card, player);
+            initializeCardPlayerMap.put(card, player);
         }
 
         //建立桌面剩余的牌垛
@@ -263,14 +294,15 @@ public class Room {
         logger.debug("playerAction");
         //需要主动行动的玩家
         Player singleWolf = getSingleWolf();
-        Player seer = cardPlayerMap.get(Card.SEER);
-        Player robber = cardPlayerMap.get(Card.ROBBER);
-        Player troublemaker = cardPlayerMap.get(Card.TROUBLEMAKER);
-        Player drunk = cardPlayerMap.get(Card.DRUNK);
+        Player seer = initializeCardPlayerMap.get(Card.SEER);
+        Player robber = initializeCardPlayerMap.get(Card.ROBBER);
+        Player troublemaker = initializeCardPlayerMap.get(Card.TROUBLEMAKER);
+        Player drunk = initializeCardPlayerMap.get(Card.DRUNK);
 
         //发牌结束后根据身份为每个玩家发送行动提示信息
         String playerSeatRange = "1--" + players.size();
-        for(Map.Entry<Card, Player> entry:cardPlayerMap.entrySet()){
+        System.out.println(playerSeatRange);
+        for(Map.Entry<Card, Player> entry: initializeCardPlayerMap.entrySet()){
             Player player = entry.getValue();
             if(player != null) {
                 String message;
@@ -291,13 +323,16 @@ public class Room {
                     message = String.format("请输入牌垛中三张纸牌1-3中的一个号码，与之交换身份卡。");
                     clientAction = ClientAction.DRUNK_ACTION;
                 }else{
-                    message = "所有玩家行动完成后，系统会给出关于您身份的进一步提示信息。";
+                    message = "所有玩家行动完成后，系统会给出下一步的信息。";
                 }
-                //向玩家发送提示信息
+                //向玩家发送身份提示信息
                 XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。", player.getCard().getDisplayName()), clientAction, null);
+                //向玩家发送操作提示信息
                 XskrMessage xskrMessage2 = new XskrMessage(message, null, null);
                 sendMessage(player, xskrMessage1);
                 sendMessage(player, xskrMessage2);
+                keepKeyMessage(player, xskrMessage1);
+                keepKeyMessage(player, xskrMessage2);
             }
         }
     }
@@ -321,7 +356,7 @@ public class Room {
         }
 
         //检查预言家是否已经行动
-        if(cardPlayerMap.get(Card.SEER) != null){
+        if(initializeCardPlayerMap.get(Card.SEER) != null){
             //如果存在预言家角色
             if((seerCheckDeck1 == null || seerCheckDeck2 == null) &&
                     seerCheckPlayer == null){
@@ -332,7 +367,7 @@ public class Room {
         }
 
         // 检查强盗是否已经行动
-        if(cardPlayerMap.get(Card.ROBBER) != null){
+        if(initializeCardPlayerMap.get(Card.ROBBER) != null){
             //如果存在强盗玩家
             if(robberSnatchSeat == null){
                 // 如果强盗没有指定要交换的位置
@@ -342,7 +377,7 @@ public class Room {
         }
 
         //检查捣蛋鬼是否已经行动
-        if(cardPlayerMap.get(Card.TROUBLEMAKER) != null){
+        if(initializeCardPlayerMap.get(Card.TROUBLEMAKER) != null){
             //如果存在捣蛋鬼玩家
             if(troublemakerExchangeSeat1 == null
                     || troublemakerExchangeSeat2 == null){
@@ -353,7 +388,7 @@ public class Room {
         }
 
         //检查酒鬼是否行动
-        if(cardPlayerMap.get(Card.DRUNK) != null){
+        if(initializeCardPlayerMap.get(Card.DRUNK) != null){
             if(drunkExchangeDeck == null){
                 logger.debug("drunk not work!");
                 return false;
@@ -366,8 +401,8 @@ public class Room {
 
     //获得孤狼玩家
     protected Player getSingleWolf(){
-        Player wolf1 = cardPlayerMap.get(Card.WEREWOLF_1);
-        Player wolf2 = cardPlayerMap.get(Card.WEREWOLF_2);
+        Player wolf1 = initializeCardPlayerMap.get(Card.WEREWOLF_1);
+        Player wolf2 = initializeCardPlayerMap.get(Card.WEREWOLF_2);
         if(wolf1 == null && wolf2 != null){
             return wolf2;
         }else if(wolf1 != null && wolf2 == null){
@@ -381,24 +416,25 @@ public class Room {
     public void attemptNightAction(){
         logger.debug("attemptNightAction()");
         if(canNightAction()){
-//          Player doopelganger = cardPlayerMap.get(Card.DOPPELGANGER);
+//          Player doopelganger = initializeCardPlayerMap.get(Card.DOPPELGANGER);
             Player singleWolf = getSingleWolf();
-            Player wolf1 = cardPlayerMap.get(Card.WEREWOLF_1);
-            Player wolf2 = cardPlayerMap.get(Card.WEREWOLF_2);
-            Player minion = cardPlayerMap.get(Card.MINION);
-            Player meson1 = cardPlayerMap.get(Card.MASON_1);
-            Player meson2 = cardPlayerMap.get(Card.MASON_2);
-            Player seer = cardPlayerMap.get(Card.SEER);
-            Player robber = cardPlayerMap.get(Card.ROBBER);
-            Player troublemaker = cardPlayerMap.get(Card.TROUBLEMAKER);
-            Player drunk = cardPlayerMap.get(Card.DRUNK);
-            Player insomniac = cardPlayerMap.get(Card.INSOMNIAC);
+            Player wolf1 = initializeCardPlayerMap.get(Card.WEREWOLF_1);
+            Player wolf2 = initializeCardPlayerMap.get(Card.WEREWOLF_2);
+            Player minion = initializeCardPlayerMap.get(Card.MINION);
+            Player meson1 = initializeCardPlayerMap.get(Card.MASON_1);
+            Player meson2 = initializeCardPlayerMap.get(Card.MASON_2);
+            Player seer = initializeCardPlayerMap.get(Card.SEER);
+            Player robber = initializeCardPlayerMap.get(Card.ROBBER);
+            Player troublemaker = initializeCardPlayerMap.get(Card.TROUBLEMAKER);
+            Player drunk = initializeCardPlayerMap.get(Card.DRUNK);
+            Player insomniac = initializeCardPlayerMap.get(Card.INSOMNIAC);
             //下面的ClientAction可能是投票
             //狼的回合
             if(singleWolf != null){
                 //场面上是一头孤狼
                 XskrMessage message = new XskrMessage(String.format("看到桌面牌垛中第%s张牌是: %s", singleWolfCheckDeck, tableDeck.get(singleWolfCheckDeck).getDisplayName()), null, null);
                 sendMessage(singleWolf, message);
+                keepKeyMessage(singleWolf, message);
             }else if(wolf1 != null && wolf2 != null){
                 //有两个狼玩家
                 String messageTemplate = "看到狼人伙伴%s号玩家'%s'看向你，露出了狡黠的目光。";
@@ -406,6 +442,8 @@ public class Room {
                 XskrMessage wolf2Message = new XskrMessage(String.format(messageTemplate, wolf1.getSeat(), wolf1.getName()), null, null);
                 sendMessage(wolf1, wolf1Message);
                 sendMessage(wolf2, wolf2Message);
+                keepKeyMessage(wolf1, wolf1Message);
+                keepKeyMessage(wolf2, wolf2Message);
             }else if(wolf1 == null && wolf2 == null){
                 //场面上没有狼，不需要给任何狼发消息
             }
@@ -427,14 +465,19 @@ public class Room {
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(minion, xskrMessage);
+                keepKeyMessage(minion, xskrMessage);
             }
 
             // 守夜人的回合
             if(meson1 == null && meson2 != null){
                 //单守夜
-                sendMessage(meson2, new XskrMessage("没有同伴。", null, null));
+                XskrMessage xskrMessage = new XskrMessage("没有同伴。", null, null);
+                sendMessage(meson2, xskrMessage);
+                keepKeyMessage(meson2, xskrMessage);
             }else if(meson1 != null && meson2 == null){
-                sendMessage(meson1, new XskrMessage("没有同伴。", null, null));
+                XskrMessage xskrMessage = new XskrMessage("没有同伴。", null, null);
+                sendMessage(meson1, xskrMessage);
+                keepKeyMessage(meson1, xskrMessage);
             }else if(meson1 != null && meson2 != null){
                 //双守夜
                 String messageTemplate = "看到另一位守夜人，%s号玩家'%s'。";
@@ -442,6 +485,8 @@ public class Room {
                 XskrMessage meson2Message = new XskrMessage(String.format(messageTemplate, meson1.getSeat(), meson1.getName()), null, null);
                 sendMessage(meson1, meson1Message);
                 sendMessage(meson2, meson2Message);
+                keepKeyMessage(meson1, meson1Message);
+                keepKeyMessage(meson2, meson2Message);
             }else{
                 //无守夜
             }
@@ -461,6 +506,7 @@ public class Room {
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(seer, xskrMessage);
+                keepKeyMessage(seer, xskrMessage);
             }
 
             if(robber != null){
@@ -469,12 +515,13 @@ public class Room {
                 player.setCard(robber.getCard());
                 robber.setCard(swapCard);
                 //更新缓存
-                cardPlayerMap.put(player.getCard(), player);
-                cardPlayerMap.put(robber.getCard(), robber);
+                initializeCardPlayerMap.put(player.getCard(), player);
+                initializeCardPlayerMap.put(robber.getCard(), robber);
                 String message = String.format("交换了%s号玩家'%s'的身份牌%s。",
                         player.getSeat(), player.getName(), swapCard);
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(robber, xskrMessage);
+                keepKeyMessage(robber, xskrMessage);
             }
             if(troublemaker != null){
                 Player player1 = seatPlayerMap.get(troublemakerExchangeSeat1);
@@ -483,23 +530,25 @@ public class Room {
                 player1.setCard(player2.getCard());
                 player2.setCard(swapCard);
                 //更新缓存
-                cardPlayerMap.put(player1.getCard(), player1);
-                cardPlayerMap.put(player2.getCard(), player2);
+                initializeCardPlayerMap.put(player1.getCard(), player1);
+                initializeCardPlayerMap.put(player2.getCard(), player2);
                 String message = String.format("交换了%s号玩家'%s'和%s号玩家'%s'的身份牌。",
                         player1.getSeat(), player1.getName(), player2.getSeat(), player2.getName());
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(troublemaker, xskrMessage);
+                keepKeyMessage(troublemaker, xskrMessage);
             }
             if(drunk != null){
                 Card swapCard = tableDeck.get(drunkExchangeDeck);
                 tableDeck.put(drunkExchangeDeck, drunk.getCard());
                 drunk.setCard(swapCard);
                 //更新缓存
-                cardPlayerMap.put(drunk.getCard(), drunk);
-                cardPlayerMap.remove(swapCard, drunk);
+                initializeCardPlayerMap.put(drunk.getCard(), drunk);
+                initializeCardPlayerMap.remove(swapCard, drunk);
                 String message = String.format("交换了牌垛里的第%s张牌。", drunkExchangeDeck);
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(drunk, xskrMessage);
+                keepKeyMessage(drunk, xskrMessage);
             }
             if(insomniac != null){
                 String message;
@@ -510,8 +559,13 @@ public class Room {
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(insomniac, xskrMessage);
+                keepKeyMessage(insomniac, xskrMessage);
             }
-            sendMessage(new XskrMessage("进行三轮讨论后请投票。", null, ClientAction.VOTE_ACTION));
+            XskrMessage xskrMessage = new XskrMessage("进行三轮讨论后请投票。", ClientAction.VOTE_ACTION, null);
+            sendMessage(xskrMessage);
+            for(Player player:players){
+                keepKeyMessage(player, xskrMessage);
+            }
         }
     }
 
@@ -589,17 +643,20 @@ public class Room {
         Set<Camp> victoryCamp = new TreeSet();
         Set<Camp> defeatCamp = new TreeSet();
 
-        if(voteStat.onlyVotedTanner()){
-            //如果只有皮匠被投出则皮匠阵营获胜
+        //只要皮匠被投出，皮匠即获胜
+        if(voteStat.voted(Card.TANNER)){
             victoryCamp.add(Camp.TANNER);
-            defeatCamp.add(Camp.WOLF);
-            defeatCamp.add(Camp.VILLAGER);
-        }else if (voteStat.hasWolfInPlayers()) {
+        }else{
+            defeatCamp.add(Camp.TANNER);
+        }
+
+        //根据玩家中有无狼来判断狼阵营和村阵营的输赢状况
+        if (voteStat.hasWolfInPlayers()) {
             // 如果所有玩家中有狼
             if(voteStat.voted(Card.HUNTER)){
                 // 如果有猎人被投中，则触发猎人技能
 
-                // 广播当前投票信息
+                // 告知猎人当前投票信息， 提示猎人由他独立投票
                 StringBuilder report = new StringBuilder();
                 for(Player player:players){
                     Player votedPlayer = seatPlayerMap.get(player.getVoteSeat());
@@ -612,64 +669,58 @@ public class Room {
                     report.append(votedPlayer.getName());
                     report.append("'\n");
                 }
+                //广播当前投票信息
                 sendMessage(new XskrMessage(report.toString(), null, null));
-                //提示猎人由他独立投票
-                Player hunter = cardPlayerMap.get(Card.HUNTER);
+                Player hunter = getPlayerByCard(Card.HUNTER);
                 hunterVote = true;
-                sendMessage(hunter, new XskrMessage("请投票", ClientAction.HUNTER_VOTE_ACTION, null));
+                XskrMessage hunterMessage = new XskrMessage("请投票", ClientAction.HUNTER_VOTE_ACTION, players);
+                sendMessage(hunter, hunterMessage);
+                keepKeyMessage(hunter, new XskrMessage(report.toString(), ClientAction.HUNTER_VOTE_ACTION, players));
                 return ;
             }else if(voteStat.voted(Card.WEREWOLF_1) || voteStat.voted(Card.WEREWOLF_2)){
                 victoryCamp.add(Camp.VILLAGER);
-                defeatCamp.add(Camp.TANNER);
                 defeatCamp.add(Camp.WOLF);
             }else{
                 victoryCamp.add(Camp.WOLF);
                 defeatCamp.add(Camp.VILLAGER);
-                defeatCamp.add(Camp.TANNER);
             }
         }else{
             //如果没有狼
             if (voteStat.getMaxVoteCount() == 1) {
                 //共同获胜
-                victoryCamp.add(Camp.TANNER);
                 victoryCamp.add(Camp.VILLAGER);
                 victoryCamp.add(Camp.WOLF);
-            } else if(voteStat.onlyVotedTanner()){
-                //皮匠获胜
-                victoryCamp.add(Camp.TANNER);
-                defeatCamp.add(Camp.VILLAGER);
-                defeatCamp.add(Camp.WOLF);
             }else{
                 //共同失败
-                defeatCamp.add(Camp.TANNER);
                 defeatCamp.add(Camp.VILLAGER);
                 defeatCamp.add(Camp.WOLF);
             }
         }
-        gameFinish(victoryCamp, defeatCamp);
+        gameFinish(victoryCamp);
     }
 
-    private void gameFinish(Set<Camp> victoryCamp, Set<Camp> defeatCamp) {
-        //生成获胜信息报告
-        StringBuilder reportBuilder = new StringBuilder();
-        reportBuilder.append("\n");
-        for(Camp camp:victoryCamp){
-            reportBuilder.append("\t获胜阵营: ");
-            reportBuilder.append(camp);
-            reportBuilder.append("\n");
-            Set<Card> victoryCardSet = Camp.getCards(camp);
-            appendPlayer(reportBuilder, victoryCardSet);
+    private void gameFinish(Set<Camp> victoryCamp) {
+        //生成游戏结局
+        List<Summary> summaries = new ArrayList();
+        for(Player player:players){
+            Card card = player.getCard();
+            Card initializeCard = null;
+            for(Map.Entry<Card, Player> entry: initializeCardPlayerMap.entrySet()){
+                if(player == entry.getValue()){
+                    initializeCard = entry.getKey();
+                    break;
+                }
+            }
+            Camp camp = Camp.getCamp(card);
+            int seat = player.getSeat();
+            boolean outcome = victoryCamp.contains(camp);
+            Summary summary = new Summary(camp, seat, outcome, initializeCard, card, null);
+            summaries.add(summary);
         }
-        for(Camp camp:defeatCamp){
-            reportBuilder.append("\t失败阵营: ");
-            reportBuilder.append(camp);
-            reportBuilder.append("\n");
-            Set<Card> defeatCardSet = Camp.getCards(camp);
-            appendPlayer(reportBuilder, defeatCardSet);
-        }
-
-        //广播消息
-        sendMessage(new XskrMessage(reportBuilder.toString(), null, null));
+        //清空每个玩家的关键消息
+        playerMessagesMap.clear();
+        playerClientActionMap.clear();
+        sendMessage(new XskrMessage("请准备...", null, null));
 
         //解除所有玩家的准备状态，本局游戏结束
         for(Player player:players){
@@ -677,21 +728,10 @@ public class Room {
         }
         hunterVote = false;
         //TODO 通知所有客户端
-        XskrMessage unreadyMessage = new XskrMessage("本局结束", ClientAction.UNREADY_ACTION, null);
+        XskrMessage unreadyMessage = new XskrMessage("本局结束", ClientAction.UNREADY_ACTION, summaries);
         sendMessage(unreadyMessage);
         //游戏进入停止状态，可以重新准备触发下一轮开始
         gaming = false;
-    }
-
-    private void appendPlayer(StringBuilder reportBuilder, Set<Card> victoryCardSet) {
-        for (Player player : players) {
-            Card card = player.getCard();
-            if (victoryCardSet.contains(card)) {
-                reportBuilder.append("\t\t");
-                reportBuilder.append(player);
-                reportBuilder.append("\n");
-            }
-        }
     }
 
     //TODO 检查是否已经行动过了
@@ -720,6 +760,7 @@ public class Room {
             logger.debug("singleWolfCheckDeck(userName = {}, deck = {})", userName, deck);
             singleWolfCheckDeck = deck;
             attemptNightAction();
+            //TODO 如果验到一张狼人牌则可以再验一张
         }
     }
 
@@ -758,24 +799,17 @@ public class Room {
             logger.debug("hunterVote(userName = {}, seat = {})", userName, seat);
             Player player = seatPlayerMap.get(seat);
             Set<Camp> victoryCampSet = new TreeSet();
-            Set<Camp> defeatCampSet = new TreeSet();
             if (player.getCard() == Card.TANNER) {
                 sendMessage(new XskrMessage("皮匠获胜", null, null));
                 victoryCampSet.add(Camp.TANNER);
-                defeatCampSet.add(Camp.WOLF);
-                defeatCampSet.add(Camp.VILLAGER);
             } else if (player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2) {
                 sendMessage(new XskrMessage("村民阵营获胜", null, null));
                 victoryCampSet.add(Camp.VILLAGER);
-                defeatCampSet.add(Camp.WOLF);
-                defeatCampSet.add(Camp.TANNER);
             } else {
                 sendMessage(new XskrMessage("狼人阵营获胜", null, null));
                 victoryCampSet.add(Camp.WOLF);
-                defeatCampSet.add(Camp.VILLAGER);
-                defeatCampSet.add(Camp.TANNER);
             }
-            gameFinish(victoryCampSet, defeatCampSet);
+            gameFinish(victoryCampSet);
         }
     }
 
@@ -812,5 +846,57 @@ public class Room {
 
     public Card[] getCards(){
         return cards;
+    }
+
+    public String getCurrentPlayerName() {
+        return currentPlayerName;
+    }
+
+    public void setCurrentPlayerName(String currentPlayerName) {
+        this.currentPlayerName = currentPlayerName;
+        this.clientAction = getLastClientAction(currentPlayerName);
+    }
+
+    private void keepKeyMessage(Player player, XskrMessage xskrMessage){
+        List<XskrMessage> messages = playerMessagesMap.get(player);
+        if(messages == null){
+            messages = new ArrayList();
+            playerMessagesMap.put(player, messages);
+        }
+        messages.add(xskrMessage);
+        if(xskrMessage.getAction() != null) {
+            playerClientActionMap.put(player, xskrMessage.getAction());
+        }
+    }
+
+    public Map<Player, List<XskrMessage>> getPlayerMessagesMap() {
+        return playerMessagesMap;
+    }
+
+    public List<String> getKeyMessages(String playerName){
+        Player player = getPlayerByName(playerName);
+        List<XskrMessage> xskrMessages = getPlayerMessagesMap().get(player);
+        List<String> messages = new ArrayList();
+        for(XskrMessage xskrMessage:xskrMessages){
+            messages.add(xskrMessage.getMessage());
+        }
+        return messages;
+    }
+
+    public ClientAction getLastClientAction(String playerName){
+        Player player = getPlayerByName(playerName);
+        if(playerClientActionMap != null) {
+            return playerClientActionMap.get(player);
+        }else{
+            return null;
+        }
+    }
+
+    public ClientAction getClientAction() {
+        return clientAction;
+    }
+
+    public void setClientAction(ClientAction clientAction) {
+        this.clientAction = clientAction;
     }
 }
