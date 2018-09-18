@@ -105,17 +105,17 @@ public class ONKController{
         room.leave(userName);
     }
 
-    /**
-     * 玩家选择座位
-     * @param roomID
-     * @param seat
-     */
-    @RequestMapping("/{roomID}/sit/{seat}")
-    public void sit(@PathVariable int roomID, @PathVariable int seat){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.sit(userName, seat);
-    }
+//    /**
+//     * 玩家选择座位
+//     * @param roomID
+//     * @param seat
+//     */
+//    @RequestMapping("/{roomID}/sit/{seat}")
+//    public void sit(@PathVariable int roomID, @PathVariable int seat){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.sit(userName, seat);
+//    }
 
     /**
      * 玩家设定准备, 如果所有玩家均已准备则触发游戏开始
@@ -135,6 +135,30 @@ public class ONKController{
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         return room.getKeyMessages(userName);
+    }
+
+    /**
+     * 点击了某个座位
+     * @param roomID
+     * @param seat
+     */
+    @RequestMapping("/{roomID}/seat/{seat}")
+    public void clickSeat(@PathVariable int roomID, @PathVariable int seat){
+        Room room = idRoomMap.get(roomID);
+        String playerName = getCurrentUserName();
+        room.clickSeat(playerName, seat);
+    }
+
+    /**
+     * 点击了桌面牌垛中的一张牌
+     * @param roomID
+     * @param card
+     */
+    @RequestMapping("/{roomID}/desktop/{card}")
+    public void clickDeck(@PathVariable int roomID, @PathVariable int card){
+        Room room = idRoomMap.get(roomID);
+        String playerName = getCurrentUserName();
+        room.clickDesktopCard(playerName, card);
     }
 
     /**
