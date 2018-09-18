@@ -4,6 +4,7 @@ gradle/
 gradlew
 gradlew.bat
 .idea/
+**/*.jar
 
 ### STS ###
 .apt_generated

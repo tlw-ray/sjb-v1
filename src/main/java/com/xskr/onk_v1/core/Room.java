@@ -308,25 +308,25 @@ public class Room {
                 String message;
                 ClientAction clientAction = null;
                 if(player == singleWolf){
-                    message = String.format("请输入1-3中的一个数字，来查看牌垛中对应的纸牌");
+                    message = String.format("请勾选牌1、牌2、牌3中的一张，点击“行动”，来查看桌面牌垛中对应的卡牌。");
                     clientAction = ClientAction.SINGLE_WOLF_ACTION;
                 }else if (player == seer) {
-                    message = String.format("请输入1-3中的两个数字来查看的牌垛中对应的纸牌，或者输入所有玩家(%s)的座位号之一，逗号分隔。", 1, playerSeatRange);
+                    message = "请勾选牌1、牌2、牌3中的任意两个来查看的桌面牌垛中对应的卡牌，或者勾选输入所有玩家之一，点击“行动”来查看其身份。";
                     clientAction = ClientAction.SEER_ACTION;
                 }else if(player == robber){
-                    message = String.format("请输入所有玩家(%s)的座位号之一，查看并交换该身份。", playerSeatRange);
+                    message = "请输勾选任意玩家，点击“行动”查阅其卡牌并交换身份。";
                     clientAction = ClientAction.ROBBER_ACTION;
                 }else if(player == troublemaker){
-                    message = String.format("请输入除您(%s)之外两个玩家(%s)的座位号，交换他们的身份。", player.getSeat(), playerSeatRange);
+                    message = "请勾选除您之外两个玩家，点击“行动”，交换他们的身份。";
                     clientAction = ClientAction.TROUBLEMAKER_ACTION;
                 }else if(player == drunk){
-                    message = String.format("请输入牌垛中三张纸牌1-3中的一个号码，与之交换身份卡。");
+                    message = "请勾选牌1、牌2、牌3中任意一张，点击“行动”与之交换身份。";
                     clientAction = ClientAction.DRUNK_ACTION;
                 }else{
                     message = "所有玩家行动完成后，系统会给出下一步的信息。";
                 }
                 //向玩家发送身份提示信息
-                XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。", player.getCard().getDisplayName()), clientAction, null);
+                XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。", getDisplayName(player.getCard())), clientAction, null);
                 //向玩家发送操作提示信息
                 XskrMessage xskrMessage2 = new XskrMessage(message, null, null);
                 sendMessage(player, xskrMessage1);
@@ -432,12 +432,12 @@ public class Room {
             //狼的回合
             if(singleWolf != null){
                 //场面上是一头孤狼
-                XskrMessage message = new XskrMessage(String.format("看到桌面牌垛中第%s张牌是: %s", singleWolfCheckDeck, tableDeck.get(singleWolfCheckDeck).getDisplayName()), null, null);
+                XskrMessage message = new XskrMessage(String.format("看到桌面牌垛中第%s张牌是: %s", singleWolfCheckDeck, getDisplayName(tableDeck.get(singleWolfCheckDeck))), null, null);
                 sendMessage(singleWolf, message);
                 keepKeyMessage(singleWolf, message);
             }else if(wolf1 != null && wolf2 != null){
                 //有两个狼玩家
-                String messageTemplate = "看到狼人伙伴%s号玩家'%s'看向你，露出了狡黠的目光。";
+                String messageTemplate = "看到狼人伙伴%s号玩家'%s'，同时他也看到了你。";
                 XskrMessage wolf1Message = new XskrMessage(String.format(messageTemplate, wolf2.getSeat(), wolf2.getName()), null, null);
                 XskrMessage wolf2Message = new XskrMessage(String.format(messageTemplate, wolf1.getSeat(), wolf1.getName()), null, null);
                 sendMessage(wolf1, wolf1Message);
@@ -471,11 +471,11 @@ public class Room {
             // 守夜人的回合
             if(meson1 == null && meson2 != null){
                 //单守夜
-                XskrMessage xskrMessage = new XskrMessage("没有同伴。", null, null);
+                XskrMessage xskrMessage = new XskrMessage("单人守夜没有同伴。", null, null);
                 sendMessage(meson2, xskrMessage);
                 keepKeyMessage(meson2, xskrMessage);
             }else if(meson1 != null && meson2 == null){
-                XskrMessage xskrMessage = new XskrMessage("没有同伴。", null, null);
+                XskrMessage xskrMessage = new XskrMessage("单人守夜没有同伴。", null, null);
                 sendMessage(meson1, xskrMessage);
                 keepKeyMessage(meson1, xskrMessage);
             }else if(meson1 != null && meson2 != null){
@@ -498,7 +498,7 @@ public class Room {
                 if(seerCheckPlayer != null){
                     Player player = seatPlayerMap.get(seerCheckPlayer);
                     message = String.format("查看%s号玩家'%s'的身份是: %s",
-                            player.getSeat(), player.getName(), player.getCard().getDisplayName());
+                            player.getSeat(), player.getName(), getDisplayName(player.getCard()));
                 }else{
                     Card card1 = tableDeck.get(seerCheckDeck1);
                     Card card2 = tableDeck.get(seerCheckDeck2);
@@ -555,7 +555,7 @@ public class Room {
                 if(insomniac.getCard() == Card.INSOMNIAC){
                     message = "牌没有被换过。";
                 }else{
-                    message = String.format("牌被换为%s。", insomniac.getCard().getDisplayName());
+                    message = String.format("牌被换为%s。", getDisplayName(insomniac.getCard()));
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(insomniac, xskrMessage);
@@ -877,8 +877,10 @@ public class Room {
         Player player = getPlayerByName(playerName);
         List<XskrMessage> xskrMessages = getPlayerMessagesMap().get(player);
         List<String> messages = new ArrayList();
-        for(XskrMessage xskrMessage:xskrMessages){
-            messages.add(xskrMessage.getMessage());
+        if(xskrMessages != null){
+            for(XskrMessage xskrMessage:xskrMessages){
+                messages.add(xskrMessage.getMessage());
+            }
         }
         return messages;
     }
@@ -889,6 +891,27 @@ public class Room {
             return playerClientActionMap.get(player);
         }else{
             return null;
+        }
+    }
+
+    private String getDisplayName(Card card){
+        switch(card){
+            case WEREWOLF_1: return "狼人";
+            case WEREWOLF_2: return "狼人";
+            case MINION: return "爪牙";
+            case TANNER: return "皮匠";
+            case MASON_1: return "守夜人";
+            case MASON_2: return "守夜人";
+            case DRUNK: return "酒鬼";
+            case HUNTER: return "猎人";
+            case INSOMNIAC: return "失眠者";
+            case ROBBER: return "强盗";
+            case SEER: return "预言家";
+            case TROUBLEMAKER: return "捣蛋鬼";
+            case VILLAGER_1: return "村民";
+            case VILLAGER_2: return "村民";
+            case VILLAGER_3: return "村民";
+            default: return card.toString();
         }
     }
 

@@ -26,18 +26,26 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     public UserDetailsService userDetailsService() {
         return new InMemoryUserDetailsManager(
-                User.withDefaultPasswordEncoder().username("dss").password("dss").roles("USER").build(),
-                User.withDefaultPasswordEncoder().username("wcy").password("wcy").roles("USER").build(),
+                User.withDefaultPasswordEncoder().username("ch").password("ch").roles("USER").build(),
+                User.withDefaultPasswordEncoder().username("ljn").password("ljn").roles("USER").build(),
                 User.withDefaultPasswordEncoder().username("wln").password("wln").roles("USER").build(),
-                User.withDefaultPasswordEncoder().username("twt").password("twt").roles("USER").build(),
-                User.withDefaultPasswordEncoder().username("yy").password("yy").roles("USER").build(),
+
+                User.withDefaultPasswordEncoder().username("dss").password("dss").roles("USER").build(),
                 User.withDefaultPasswordEncoder().username("yl").password("yl").roles("USER").build(),
                 User.withDefaultPasswordEncoder().username("wyh").password("wyh").roles("USER").build(),
-                User.withDefaultPasswordEncoder().username("ch").password("ch").roles("USER").build(),
-                User.withDefaultPasswordEncoder().username("tlw").password("tlw").roles("USER").build(),
+                User.withDefaultPasswordEncoder().username("twt").password("twt").roles("USER").build(),
+                User.withDefaultPasswordEncoder().username("sydq").password("sydq").roles("USER").build(),
                 User.withDefaultPasswordEncoder().username("wc").password("wc").roles("USER").build(),
+
+                User.withDefaultPasswordEncoder().username("yy").password("yy").roles("USER").build(),
+                User.withDefaultPasswordEncoder().username("tlw").password("tlw").roles("USER").build(),
+                User.withDefaultPasswordEncoder().username("lk").password("lk").roles("USER").build(),
+
                 User.withDefaultPasswordEncoder().username("wx").password("wx").roles("USER").build(),
-                User.withDefaultPasswordEncoder().username("ljn").password("ljn").roles("USER").build()
+                User.withDefaultPasswordEncoder().username("cwl").password("cwl").roles("USER").build(),
+                User.withDefaultPasswordEncoder().username("zyg").password("zyg").roles("USER").build(),
+
+                User.withDefaultPasswordEncoder().username("nj").password("nj").roles("USER").build()
         );
     }
 }

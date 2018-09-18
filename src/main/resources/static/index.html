@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>创建或加入房间</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <script src="/webjars/jquery/jquery.min.js"></script>
     <script src="/webjars/sockjs-client/sockjs.min.js"></script>
     <script src="/webjars/stomp-websocket/stomp.min.js"></script>
@@ -16,18 +17,20 @@
         $(document).ready(function(){
             //准备创建房间
             $('#create_room_button').click(function(){
+                $('#home').hide();
                 $('#create_room_div').show()
                 $('#join_room_div').hide()
             })
             //准备加入房间
             $('#join_room_button').click(function(){
+                $('#home').hide();
                 $('#create_room_div').hide()
                 $('#join_room_div').show()
             })
             //创建时勾选角色时计算房间能够容纳的人数（座位数）
             $('#create_room_div :checkbox').click(function(){
                 var size = $('#create_room_div input:checked').length
-                $('#apply_create_button').html('(人数:' + size + ') 确定')
+                $('#apply_create_button').html('(人数:' + (size - 3) + ') 确定')
                 $('#create_room_div').show()
             })
             //确定创建新房间
@@ -453,14 +456,47 @@
             }
         }
     </script>
+    <style>
+        .logo {
+            width: 100%;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .row {
+            width: 100%;
+            text-align: center;
+        }
+
+        button {
+            width: 60px;
+            height: 40px;
+        }
+        #imgs {
+            width: 100%;
+            text-align: center;
+            margin: 20px 0;
+        }
+        #imgs>img {
+            width: 60px;
+            height: 60px;
+            margin-left: 10px;
+        }
+    </style>
 </head>
 <body>
     <div id="create_join_div" class="container">
-        <div id="create_join_button_div" class="row">
-            <button id="create_room_button">创建</button>
-            <button id="join_room_button">加入</button><br><br>
+        <div id="home">
+            <img class="logo" src="logo.jpg">
+            <div id="create_join_button_div" class="row">
+                <button id="create_room_button">创建</button>
+                <button id="join_room_button">加入</button><br><br>
+            </div>
         </div>
+
         <div id="create_room_div" class="col-md-5" hidden>
+            <div id="imgs">
+                <img src="狼人.jpg"><img src="预言家.jpg"><img src="猎人.jpg"><img src="村民.jpg">
+            </div>
             <div>
                 <div>
                     <div>狼人阵营:</div><br>
@@ -514,12 +550,16 @@
                     </div>
                 </div>
             </div>
-            <button id="apply_create_button" style="margin-left: 200px">确定</button>
+            <hr/>
+            <div style="width: 100%;text-align: center;">
+            <button id="apply_create_button">确定</button>
+            </div>
         </div>
         <div id="join_room_div" class="row" hidden>
             <label for="room_id_input">房间号: </label>
             <input type="number" id="room_id_input" value="1"><br><br>
-            <button id="apply_join_button" style="margin-left: 200px">确定</button>
+            <hr/>
+            <button id="apply_join_button">确定</button>
         </div>
     </div>
     <div id="room_div" class="container" hidden>
