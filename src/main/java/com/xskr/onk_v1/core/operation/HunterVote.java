@@ -1,17 +1,13 @@
 package com.xskr.onk_v1.core.exchange;
 
-import com.xskr.onk_v1.core.Card;
-
+//猎人投票
 public class HunterVote {
 
+    //猎人投票的座位
     int voteSeat;
-    Card votedCard;
 
     public int getVoteSeat() {
         return voteSeat;
     }
 
-    public void setVoteSeat(int voteSeat) {
-        this.voteSeat = voteSeat;
-    }
 }
