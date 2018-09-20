@@ -20,6 +20,8 @@ public class Room {
     // 该房间支持的所有卡牌
     private Card[] cards;
 
+    private int deckSize = 3;
+
     // 进入房间的玩家，但可能还没有入座
     private Set<Player> players;
     // 发牌后剩余的桌面3张牌垛
@@ -568,6 +570,7 @@ public class Room {
             for(Player player:players){
                 keepKeyMessage(player, xskrMessage);
             }
+            scene = Scene.VOTE;
         }
     }
 
@@ -735,66 +738,6 @@ public class Room {
         playerClientActionMap.clear();
     }
 
-    //点击了座位
-    public void clickSeat(String playerName, int seat){
-        Player player = namePlayerMap.get(playerName);
-        switch(scene){
-            case ACTIVATE:{
-                //游戏过程中点击座位，根据玩家身份与操作状态触发行动，并对下一步可能进行的操作进行提示
-
-            }
-            case VOTE: {
-                //投票状态点击座位，表示投该位玩家的票
-
-            }
-            case PREPARE: {
-                //准备状态点击座位，表示交换座位
-                //检查seat number的合法性， 从1开始到玩家数量上限
-                if(seat>=0 && seat<getSeatCount()){
-                    if(player != null){
-                        if(!seatPlayerMap.keySet().contains(seat)){
-                            //旧的座位移除
-                            int oldSeat = player.getSeat();
-                            seatPlayerMap.remove(oldSeat);
-                            //新的座位加入
-                            seatPlayerMap.put(seat, player);
-                            player.setSeat(seat);
-                            //发送一个刷新房间信息的(换座)事件
-                            XskrMessage xskrMessage = new XskrMessage(null, ClientAction.REFRESH_PLAYERS_INFO_ACTION, this);
-                            sendMessage(xskrMessage);
-                        }else{
-                            // 这个座位已经有人了,所以什么都不会发生
-                        }
-                    }else{
-                        String message = String.format("玩家%s不在房间, 无法应用座位号。", playerName);
-                        throw new RuntimeException(message);
-                    }
-                }else{
-                    String message = String.format("试图为玩家%s分配不合理的座位号: %d", playerName, seat);
-                    throw new RuntimeException(message);
-                }
-            }
-        }
-    }
-
-    //点击了桌面上的牌
-    public void clickDesktopCard(String playerName, int card){
-        Player player = namePlayerMap.get(playerName);
-        switch(scene){
-            case ACTIVATE:{
-                //游戏过程中点击桌面上的牌，根据玩家身份判定是否能够检视或跟换该牌，并对下一步可能进行的操作进行提示
-
-
-            }
-            case VOTE: {
-                //do nothing
-            }
-            case PREPARE: {
-                //do nothing
-            }
-        }
-    }
-
     //TODO 检查是否已经行动过了
     //捣蛋鬼换牌
     public void troublemakerExchangeCard(String userName, int seat1, int seat2){
@@ -856,25 +799,33 @@ public class Room {
     //猎人投票
     public void hunterVote(String userName, int seat){
         //TODO 判定该事件是否能够触发
-        if(hunterVote) {
-            logger.debug("hunterVote(userName = {}, seat = {})", userName, seat);
-            Player player = seatPlayerMap.get(seat);
-            Set<Camp> victoryCampSet = new TreeSet();
-            if (player.getCard() == Card.TANNER) {
-                sendMessage(new XskrMessage("皮匠获胜", null, null));
-                victoryCampSet.add(Camp.TANNER);
-            } else if (player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2) {
-                sendMessage(new XskrMessage("村民阵营获胜", null, null));
-                victoryCampSet.add(Camp.VILLAGER);
-            } else {
-                sendMessage(new XskrMessage("狼人阵营获胜", null, null));
-                victoryCampSet.add(Camp.WOLF);
+        Player hunterPlayer = namePlayerMap.get(userName);
+        if(hunterPlayer.getCard() == Card.HUNTER) {
+            if (hunterVote) {
+                logger.debug("hunterVote(userName = {}, seat = {})", userName, seat);
+                Player player = seatPlayerMap.get(seat);
+                Set<Camp> victoryCampSet = new TreeSet();
+                if (player.getCard() == Card.TANNER) {
+                    sendMessage(new XskrMessage("皮匠获胜", null, null));
+                    victoryCampSet.add(Camp.TANNER);
+                } else if (player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2) {
+                    sendMessage(new XskrMessage("村民阵营获胜", null, null));
+                    victoryCampSet.add(Camp.VILLAGER);
+                } else {
+                    sendMessage(new XskrMessage("狼人阵营获胜", null, null));
+                    victoryCampSet.add(Camp.WOLF);
+                }
+                gameFinish(victoryCampSet);
+            }else{
+                logger.error("非猎人技能触发时机，试图进行猎人投票");
             }
-            gameFinish(victoryCampSet);
+        }else{
+            logger.error("非猎人玩家试图进行猎人投票.");
         }
     }
 
     public void pickCard(String playerName, int card){
+        logger.debug("pickCard(playerName={}, card={})", playerName, card);
         Player player = namePlayerMap.get(playerName);
         //如果卡牌序号信息是合理的
         if (card >= 0 && card < TABLE_DECK_THICKNESS) {
@@ -916,17 +867,21 @@ public class Room {
                 } else {
                     //do nothing
                 }
-
-            } else {
-                throw new RuntimeException("卡牌序号" + card + "不合理");
+            }else if(scene == Scene.VOTE){
+                //非行动时间进行行动请求
+                //do nothing
+            } else if(scene == Scene.PREPARE){
+                //do nothing
+            }else{
+                throw new RuntimeException("Unsupported scene: " + scene);
             }
-        }else{
-            //非行动时间进行行动请求
-            //do nothing
+        } else {
+            throw new RuntimeException("卡牌序号" + card + "不合理");
         }
     }
 
     public void pickPlayer(String playerName, int seat){
+        logger.debug("pickPlayer(playerName={}, seat={})", playerName, seat);
         Player player = namePlayerMap.get(playerName);
         //验证座位的合理性
         if (seat >= 0 && seat < getSeatCount()) {
@@ -969,8 +924,7 @@ public class Room {
                 if (hunterVote) {
                     if (player.getInitializeCard() == Card.HUNTER) {
                         //猎人技能投票
-
-
+                        hunterVote(playerName, seat);
                     } else {
                         //do nothing
                     }
@@ -1090,6 +1044,10 @@ public class Room {
             case VILLAGER_3: return "村民";
             default: return card.toString();
         }
+    }
+
+    public int getDeckSize() {
+        return deckSize;
     }
 
     public ClientAction getClientAction() {

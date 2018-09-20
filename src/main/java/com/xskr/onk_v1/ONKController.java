@@ -136,30 +136,6 @@ public class ONKController{
     }
 
     /**
-     * 点击了某个座位
-     * @param roomID
-     * @param seat
-     */
-    @RequestMapping("/{roomID}/seat/{seat}")
-    public void clickSeat(@PathVariable int roomID, @PathVariable int seat){
-        Room room = idRoomMap.get(roomID);
-        String playerName = getCurrentUserName();
-        room.clickSeat(playerName, seat);
-    }
-
-    /**
-     * 点击了桌面牌垛中的一张牌
-     * @param roomID
-     * @param card
-     */
-    @RequestMapping("/{roomID}/desktop/{card}")
-    public void clickDeck(@PathVariable int roomID, @PathVariable int card){
-        Room room = idRoomMap.get(roomID);
-        String playerName = getCurrentUserName();
-        room.clickDesktopCard(playerName, card);
-    }
-
-    /**
      * 捣蛋鬼换牌
      * @param roomID
      * @param seat1
@@ -263,14 +239,17 @@ public class ONKController{
      * @return
      */
     @RequestMapping("/{roomID}/deck/{cardID}")
-    public void pickDeck(@PathVariable int roomID, @PathVariable int cardID){
+    public void pickCard(@PathVariable int roomID, @PathVariable int cardID){
         String playerName = getCurrentUserName();
-
+        Room room = idRoomMap.get(roomID);
+        room.pickCard(playerName, cardID);
     }
 
-    @RequestMapping("/{roomID}/player/{seat}")
+    @RequestMapping("/{roomID}/seat/{seat}")
     public void pickPlayer(@PathVariable int roomID, @PathVariable int seat){
         String playerName = getCurrentUserName();
+        Room room = idRoomMap.get(roomID);
+        room.pickPlayer(playerName, seat);
     }
 
     private String getCurrentUserName(){
