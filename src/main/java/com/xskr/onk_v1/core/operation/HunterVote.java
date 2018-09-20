@@ -1,4 +1,4 @@
-package com.xskr.onk_v1.core.exchange;
+package com.xskr.onk_v1.core.operation;
 
 //猎人投票
 public class HunterVote {

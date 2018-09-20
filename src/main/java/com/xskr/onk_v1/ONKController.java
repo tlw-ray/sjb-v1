@@ -1,8 +1,6 @@
 package com.xskr.onk_v1;
 
-import com.xskr.common.XskrMessage;
 import com.xskr.onk_v1.core.Card;
-import com.xskr.onk_v1.core.Player;
 import com.xskr.onk_v1.core.Room;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,7 +167,7 @@ public class ONKController{
      */
     @RequestMapping("/{roomID}/troublemaker/exchange/{seat1}/{seat2}")
     public void exchangeCard(@PathVariable int roomID, @PathVariable int seat1, @PathVariable int seat2){
-        System.out.println("troublemaker exchange card: " + seat1 + ", " + seat2);
+        System.out.println("troublemaker operation card: " + seat1 + ", " + seat2);
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.troublemakerExchangeCard(userName, seat1, seat2);
@@ -248,11 +246,31 @@ public class ONKController{
         room.vote(userName, seat);
     }
 
+    /**
+     * 猎人触发技能投票
+     * @param roomID
+     * @param seat
+     */
     @RequestMapping("/{roomID}/hunter/vote/{seat}")
     public void hunterVote(@PathVariable int roomID, @PathVariable int seat){
         String userName = getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.hunterVote(userName, seat);
+    }
+
+    /**
+     * 玩家点击了桌上的一张牌
+     * @return
+     */
+    @RequestMapping("/{roomID}/deck/{cardID}")
+    public void pickDeck(@PathVariable int roomID, @PathVariable int cardID){
+        String playerName = getCurrentUserName();
+
+    }
+
+    @RequestMapping("/{roomID}/player/{seat}")
+    public void pickPlayer(@PathVariable int roomID, @PathVariable int seat){
+        String playerName = getCurrentUserName();
     }
 
     private String getCurrentUserName(){

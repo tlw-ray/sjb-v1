@@ -5,6 +5,7 @@ import java.util.Objects;
 public class Player implements Comparable<Player>{
 	
 	private String name;
+	private Card initializeCard;
 	private Card card;
 	private int seat;
 	private boolean ready;
@@ -64,6 +65,13 @@ public class Player implements Comparable<Player>{
 		votedCount++;
 	}
 
+	public Card getInitializeCard() {
+		return initializeCard;
+	}
+
+	public void setInitializeCard(Card initializeCard) {
+		this.initializeCard = initializeCard;
+	}
 //	@Override
 //	public boolean equals(Object o) {
 //		if (this == o) return true;

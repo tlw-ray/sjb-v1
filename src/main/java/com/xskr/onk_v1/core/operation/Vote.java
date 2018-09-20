@@ -1,4 +1,4 @@
-package com.xskr.onk_v1.core.exchange;
+package com.xskr.onk_v1.core.operation;
 
 public class Vote extends Operation{
 

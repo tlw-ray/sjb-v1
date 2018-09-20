@@ -1,6 +1,4 @@
-package com.xskr.onk_v1.core.exchange;
-
-import com.xskr.onk_v1.core.Card;
+package com.xskr.onk_v1.core.operation;
 
 //强盗换牌
 public class RobberSnatch extends Operation{

@@ -1,6 +1,5 @@
-package com.xskr.onk_v1.core.exchange;
+package com.xskr.onk_v1.core.operation;
 
-import com.xskr.onk_v1.core.Card;
 //预言家查阅牌堆中的两张牌
 public class SeerCheckDeck extends Operation{
 
