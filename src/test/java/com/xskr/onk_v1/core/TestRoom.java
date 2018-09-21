@@ -40,15 +40,16 @@ public class TestRoom {
         // 进入夜晚每个玩家行动
         Player singleWolf = room.getSingleWolf();
         if(singleWolf != null){
-            room.singleWolfCheckDeck(singleWolf.getName(), 0);
+            room.pickCard(singleWolf.getName(), 0);
         }
         Player seer = room.getPlayerByInitializeCard(Card.SEER);
         if(seer != null){
-            room.seerCheckDeck(seer.getName(), 1, 2);
+            room.pickCard(seer.getName(), 1);
+            room.pickCard(seer.getName(), 2);
         }
         Player robber = room.getPlayerByInitializeCard(Card.ROBBER);
         if(robber != null){
-            room.robberSnatchCard(robber.getName(), 5);
+            room.pickPlayer(robber.getName(), 5);
         }
         Player troublemaker = room.getPlayerByInitializeCard(Card.TROUBLEMAKER);
         if(troublemaker != null){
@@ -63,11 +64,13 @@ public class TestRoom {
                 seat1 = troublemaker.getSeat() - 1;
                 seat2 = troublemaker.getSeat() + 1;
             }
-            room.troublemakerExchangeCard(troublemaker.getName(), seat1, seat2);
+            room.pickPlayer(troublemaker.getName(), seat1);
+            room.pickPlayer(troublemaker.getName(), seat2);
+
         }
         Player drunk = room.getPlayerByInitializeCard(Card.DRUNK);
         if(drunk != null){
-            room.drunkExchangeCard(drunk.getName(), 1);
+            room.pickCard(drunk.getName(), 1);
         }
 
         //每个玩家都行动完毕后，房间自动发动夜间流程并发消息给每个玩家
@@ -94,18 +97,20 @@ public class TestRoom {
         }else{
             System.out.println("场面上没有皮匠，无法模拟皮匠被单独得票最高的场景");
         }
-        room.clearVote();
+        clearVote(room);
 
         //模拟情况2: 猎人被投出
         Player hunter = room.getPlayerByInitializeCard(Card.HUNTER);
         if(hunter != null){
             for(Player player:room.getPlayers()){
-                player.setVoteSeat(hunter.getSeat());
+//                player.setVoteSeat(hunter.getSeat());
+                room.pickPlayer(player.getName(), hunter.getSeat());
             }
 
             if(wolf != null) {
                 //2.1 猎人投了狼: 村民阵营胜利
-                room.hunterVote(hunter.getName(), wolf.getSeat());
+//                room.hunterVote(hunter.getName(), wolf.getSeat());
+                room.pickPlayer(hunter.getName(), wolf.getSeat());
             }else{
                 System.out.println("场面上没有狼存在，无法模拟有狼且猎人被投出的情况。");
             }
@@ -123,7 +128,7 @@ public class TestRoom {
                     break;
                 }
             }
-            room.clearVote();
+            clearVote(room);
         }else{
             System.out.println("场面上没有猎人存在，无法模拟有狼且猎人被投出的情况。");
         }
@@ -134,14 +139,14 @@ public class TestRoom {
             for(Player player:room.getPlayers()){
                 room.vote(player.getName(), wolf.getSeat());
             }
-            room.clearVote();
+            clearVote(room);
             //3.2 有狼且爪牙被投出: 狼获胜
             Player minion = room.getPlayerByInitializeCard(Card.MINION);
             if(minion != null){
                 for(Player player:room.getPlayers()){
                     room.vote(player.getName(), minion.getSeat());
                 }
-                room.clearVote();
+                clearVote(room);
             }else{
                 System.out.println("没有爪牙的存在，不能模拟爪牙被投出的情况。");
             }
@@ -160,7 +165,7 @@ public class TestRoom {
             for(Player player:room.getPlayers()){
                 room.vote(player.getName(), normalPlayer.getSeat());
             }
-            room.clearVote();
+            clearVote(room);
         }else{
             System.out.println("场面上没有狼，无法模拟狼被投票出的场景");
         }
@@ -175,6 +180,13 @@ public class TestRoom {
         }
         for (Player player : room.getPlayers()) {
             room.vote(player.getName(), player.getSeat());
+        }
+    }
+
+    private void clearVote(Room room){
+        for(Player player:room.getPlayers()){
+            player.setVoteSeat(null);
+            player.setVotedCount(0);
         }
     }
 }

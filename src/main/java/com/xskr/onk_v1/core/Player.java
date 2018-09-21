@@ -7,7 +7,7 @@ public class Player implements Comparable<Player>{
 	private String name;
 	private Card initializeCard;
 	private Card card;
-	private int seat;
+	private Integer seat;
 	private boolean ready;
 	private Integer voteSeat;	//该玩家投票到某个座位的玩家
 	private int votedCount;		//该玩家被投票的次数
@@ -37,11 +37,11 @@ public class Player implements Comparable<Player>{
 		this.ready = ready;
 	}
 
-	public int getSeat() {
+	public Integer getSeat() {
 		return seat;
 	}
 
-	public void setSeat(int seat) {
+	public void setSeat(Integer seat) {
 		this.seat = seat;
 	}
 

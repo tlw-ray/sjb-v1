@@ -135,104 +135,104 @@ public class ONKController{
         return room.getKeyMessages(userName);
     }
 
-    /**
-     * 捣蛋鬼换牌
-     * @param roomID
-     * @param seat1
-     * @param seat2
-     */
-    @RequestMapping("/{roomID}/troublemaker/exchange/{seat1}/{seat2}")
-    public void exchangeCard(@PathVariable int roomID, @PathVariable int seat1, @PathVariable int seat2){
-        System.out.println("troublemaker operation card: " + seat1 + ", " + seat2);
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.troublemakerExchangeCard(userName, seat1, seat2);
-    }
-
-    /**
-     * 强盗换牌
-     * @param roomID
-     * @param seat
-     */
-    @RequestMapping("/{roomID}/robber/snatch/{seat}")
-    public void snatchCard(@PathVariable int roomID, @PathVariable int seat){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.robberSnatchCard(userName, seat);
-    }
-
-    /**
-     * 狼人验牌
-     * @param roomID
-     * @param deck
-     */
-    @RequestMapping("/{roomID}/singleWolf/check/{deck}")
-    public void wolfCheckDeck(@PathVariable int roomID, @PathVariable int deck){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.singleWolfCheckDeck(userName, deck);
-    }
-
-    /**
-     * 预言家验牌
-     * @param roomID
-     * @param deck1
-     * @param deck2
-     */
-    @RequestMapping("/{roomID}/seer/check/{deck1}/{deck2}")
-    public void seerCheckDeck(@PathVariable int roomID, @PathVariable int deck1, @PathVariable int deck2){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.seerCheckDeck(userName, deck1, deck2);
-    }
-
-    /**
-     * 预言家验人
-     * @param roomID
-     * @param seat
-     */
-    @RequestMapping("/{roomID}/seer/check/{seat}")
-    public void seerCheckPlayer(@PathVariable int roomID, @PathVariable int seat){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.seerCheckPlayer(userName, seat);
-    }
-
-    /**
-     * 酒鬼换牌
-     * @param roomID
-     * @param deck
-     */
-    @RequestMapping("/{roomID}/drunk/exchange/{deck}")
-    public void drunkExchangeCard(@PathVariable int roomID, @PathVariable int deck){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.drunkExchangeCard(userName, deck);
-    }
-
-    /**
-     * 投票
-     * @param roomID
-     * @param seat
-     */
-    @RequestMapping("/{roomID}/vote/{seat}")
-    public void vote(@PathVariable int roomID, @PathVariable int seat){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.vote(userName, seat);
-    }
-
-    /**
-     * 猎人触发技能投票
-     * @param roomID
-     * @param seat
-     */
-    @RequestMapping("/{roomID}/hunter/vote/{seat}")
-    public void hunterVote(@PathVariable int roomID, @PathVariable int seat){
-        String userName = getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.hunterVote(userName, seat);
-    }
+//    /**
+//     * 捣蛋鬼换牌
+//     * @param roomID
+//     * @param seat1
+//     * @param seat2
+//     */
+//    @RequestMapping("/{roomID}/troublemaker/exchange/{seat1}/{seat2}")
+//    public void exchangeCard(@PathVariable int roomID, @PathVariable int seat1, @PathVariable int seat2){
+//        System.out.println("troublemaker operation card: " + seat1 + ", " + seat2);
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.troublemakerExchangeCard(userName, seat1, seat2);
+//    }
+//
+//    /**
+//     * 强盗换牌
+//     * @param roomID
+//     * @param seat
+//     */
+//    @RequestMapping("/{roomID}/robber/snatch/{seat}")
+//    public void snatchCard(@PathVariable int roomID, @PathVariable int seat){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.robberSnatchCard(userName, seat);
+//    }
+//
+//    /**
+//     * 狼人验牌
+//     * @param roomID
+//     * @param deck
+//     */
+//    @RequestMapping("/{roomID}/singleWolf/check/{deck}")
+//    public void wolfCheckDeck(@PathVariable int roomID, @PathVariable int deck){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.singleWolfCheckDeck(userName, deck);
+//    }
+//
+//    /**
+//     * 预言家验牌
+//     * @param roomID
+//     * @param deck1
+//     * @param deck2
+//     */
+//    @RequestMapping("/{roomID}/seer/check/{deck1}/{deck2}")
+//    public void seerCheckDeck(@PathVariable int roomID, @PathVariable int deck1, @PathVariable int deck2){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.seerCheckDeck(userName, deck1, deck2);
+//    }
+//
+//    /**
+//     * 预言家验人
+//     * @param roomID
+//     * @param seat
+//     */
+//    @RequestMapping("/{roomID}/seer/check/{seat}")
+//    public void seerCheckPlayer(@PathVariable int roomID, @PathVariable int seat){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.seerCheckPlayer(userName, seat);
+//    }
+//
+//    /**
+//     * 酒鬼换牌
+//     * @param roomID
+//     * @param deck
+//     */
+//    @RequestMapping("/{roomID}/drunk/exchange/{deck}")
+//    public void drunkExchangeCard(@PathVariable int roomID, @PathVariable int deck){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.drunkExchangeCard(userName, deck);
+//    }
+//
+//    /**
+//     * 投票
+//     * @param roomID
+//     * @param seat
+//     */
+//    @RequestMapping("/{roomID}/vote/{seat}")
+//    public void vote(@PathVariable int roomID, @PathVariable int seat){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.vote(userName, seat);
+//    }
+//
+//    /**
+//     * 猎人触发技能投票
+//     * @param roomID
+//     * @param seat
+//     */
+//    @RequestMapping("/{roomID}/hunter/vote/{seat}")
+//    public void hunterVote(@PathVariable int roomID, @PathVariable int seat){
+//        String userName = getCurrentUserName();
+//        Room room = idRoomMap.get(roomID);
+//        room.hunterVote(userName, seat);
+//    }
 
     /**
      * 玩家点击了桌上的一张牌
