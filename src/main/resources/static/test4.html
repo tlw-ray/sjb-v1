@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/webjars/jquery/jquery.min.js"></script>
+    <script>
+        //查找seat下的div如果没有子则建立一个button放入，自动坐下功能
+        $(document).ready(function(){
+            $('#seat > div:not(:contains("button"))').first().html("xxxx")
+        })
+    </script>
+</head>
+<body>
+<div id="seat">
+    <div id="seat_1">
+        <button>ok1</button>
+    </div>
+    <div id="seat_2">aaa
+    </div>
+    <div id="seat_3">bb
+    </div>
+</div>
+</body>
+</html>

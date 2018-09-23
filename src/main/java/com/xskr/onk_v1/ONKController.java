@@ -1,14 +1,15 @@
 package com.xskr.onk_v1;
 
+import com.xskr.common.WebUtil;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Room;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.autoconfigure.metrics.MetricsProperties;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -26,29 +27,22 @@ public class ONKController{
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
 
-    @RequestMapping(path = "/hello")
-    public String hello(){
-        return "Hello";
+    @RequestMapping("/cards")
+    public Card[] getCards(){
+        return Card.values();
     }
 
     /**
      * 创建房间，需要传入该房间支持的角色列表
-     * @param cardNames 角色名称清单
      * @return 房间静态信息, ID, 现有玩家清单, 座位数量等, 角色列表
      */
     @RequestMapping(path = "/room", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public Room createRoom(@RequestBody String[] cardNames){
-        logger.debug(Arrays.toString(cardNames));
-        List<Card> cards = new ArrayList();
-        for(String cardName:cardNames){
-            Card card = Card.valueOf(cardName);
-            cards.add(card);
-        }
-        RoomID_Generator++;
-        Room room = new Room(RoomID_Generator, cards);
+    public int createRoom(){
+        int roomID = RoomID_Generator++;
+        Room room = new Room(roomID, WebUtil.getCurrentUserName());
         room.setSimpMessagingTemplate(simpMessagingTemplate);
-        idRoomMap.put(RoomID_Generator, room);
-        return room;
+        idRoomMap.put(roomID, room);
+        return roomID;
     }
 
     /**
@@ -57,19 +51,23 @@ public class ONKController{
      * @return
      */
     @RequestMapping("/{roomID}/join")
-    public Room join(@PathVariable int roomID){
-        String userName = getCurrentUserName();
+    public void join(@PathVariable int roomID){
+        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.join(userName);
-        room.setCurrentPlayerName(userName);
-        return room;
+    }
+
+    @RequestMapping("/{roomID}/exit")
+    public void exit(@PathVariable int roomID){
+        String userName = WebUtil.getCurrentUserName();
+        Room room = idRoomMap.get(roomID);
+        room.leave(userName);
     }
 
     //TODO 注意: 所有返回Room的方法均导致玩家手牌信息的泄露
     @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Room getRoom(@PathVariable int roomID){
         Room room = idRoomMap.get(roomID);
-        room.setCurrentPlayerName(getCurrentUserName());
         return room;
     }
 
@@ -98,7 +96,7 @@ public class ONKController{
      */
     @RequestMapping("/{roomID}/leave")
     public void leave(@PathVariable int roomID){
-        String userName = getCurrentUserName();
+        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.leave(userName);
     }
@@ -123,116 +121,17 @@ public class ONKController{
      */
     @RequestMapping("/{roomID}/ready/{ready}")
     public boolean ready(@PathVariable int roomID, @PathVariable boolean ready){
-        String userName = getCurrentUserName();
+        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         return room.setReady(userName, ready);
     }
 
     @RequestMapping("/{roomID}/keyMessages")
     public List<String> getKeyMessages(@PathVariable int roomID){
-        String userName = getCurrentUserName();
+        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         return room.getKeyMessages(userName);
     }
-
-//    /**
-//     * 捣蛋鬼换牌
-//     * @param roomID
-//     * @param seat1
-//     * @param seat2
-//     */
-//    @RequestMapping("/{roomID}/troublemaker/exchange/{seat1}/{seat2}")
-//    public void exchangeCard(@PathVariable int roomID, @PathVariable int seat1, @PathVariable int seat2){
-//        System.out.println("troublemaker operation card: " + seat1 + ", " + seat2);
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.troublemakerExchangeCard(userName, seat1, seat2);
-//    }
-//
-//    /**
-//     * 强盗换牌
-//     * @param roomID
-//     * @param seat
-//     */
-//    @RequestMapping("/{roomID}/robber/snatch/{seat}")
-//    public void snatchCard(@PathVariable int roomID, @PathVariable int seat){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.robberSnatchCard(userName, seat);
-//    }
-//
-//    /**
-//     * 狼人验牌
-//     * @param roomID
-//     * @param deck
-//     */
-//    @RequestMapping("/{roomID}/singleWolf/check/{deck}")
-//    public void wolfCheckDeck(@PathVariable int roomID, @PathVariable int deck){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.singleWolfCheckDeck(userName, deck);
-//    }
-//
-//    /**
-//     * 预言家验牌
-//     * @param roomID
-//     * @param deck1
-//     * @param deck2
-//     */
-//    @RequestMapping("/{roomID}/seer/check/{deck1}/{deck2}")
-//    public void seerCheckDeck(@PathVariable int roomID, @PathVariable int deck1, @PathVariable int deck2){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.seerCheckDeck(userName, deck1, deck2);
-//    }
-//
-//    /**
-//     * 预言家验人
-//     * @param roomID
-//     * @param seat
-//     */
-//    @RequestMapping("/{roomID}/seer/check/{seat}")
-//    public void seerCheckPlayer(@PathVariable int roomID, @PathVariable int seat){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.seerCheckPlayer(userName, seat);
-//    }
-//
-//    /**
-//     * 酒鬼换牌
-//     * @param roomID
-//     * @param deck
-//     */
-//    @RequestMapping("/{roomID}/drunk/exchange/{deck}")
-//    public void drunkExchangeCard(@PathVariable int roomID, @PathVariable int deck){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.drunkExchangeCard(userName, deck);
-//    }
-//
-//    /**
-//     * 投票
-//     * @param roomID
-//     * @param seat
-//     */
-//    @RequestMapping("/{roomID}/vote/{seat}")
-//    public void vote(@PathVariable int roomID, @PathVariable int seat){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.vote(userName, seat);
-//    }
-//
-//    /**
-//     * 猎人触发技能投票
-//     * @param roomID
-//     * @param seat
-//     */
-//    @RequestMapping("/{roomID}/hunter/vote/{seat}")
-//    public void hunterVote(@PathVariable int roomID, @PathVariable int seat){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.hunterVote(userName, seat);
-//    }
 
     /**
      * 玩家点击了桌上的一张牌
@@ -240,22 +139,28 @@ public class ONKController{
      */
     @RequestMapping("/{roomID}/deck/{cardID}")
     public void pickCard(@PathVariable int roomID, @PathVariable int cardID){
-        String playerName = getCurrentUserName();
+        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.pickCard(playerName, cardID);
+        room.pickCard(userName, cardID);
     }
 
     @RequestMapping("/{roomID}/seat/{seat}")
-    public void pickPlayer(@PathVariable int roomID, @PathVariable int seat){
-        String playerName = getCurrentUserName();
+    public void pickSeat(@PathVariable int roomID, @PathVariable int seat){
+        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.pickPlayer(playerName, seat);
+        room.pickSeat(userName, seat);
     }
 
-    private String getCurrentUserName(){
-        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext()
-            .getAuthentication()
-            .getPrincipal();
-        return userDetails.getUsername();
+    @RequestMapping(path = "/{roomID}/cards", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public void setCards(@PathVariable int roomID,@RequestBody Card[] cards){
+        String userName = WebUtil.getCurrentUserName();
+        System.out.println(userName + ": set cards ...................." + Arrays.toString(cards));
+        System.out.println(roomID);
+        Room room = idRoomMap.get(roomID);
+        System.out.println(room);
+        System.out.println(room.getOwner());
+        if(userName.equals(room.getOwner())){
+            room.setCards(cards);
+        }
     }
 }

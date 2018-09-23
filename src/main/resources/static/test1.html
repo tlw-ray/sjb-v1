@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/webjars/jquery/jquery.min.js"></script>
+    <script>
+        //动态生成按钮并添加点击事件
+        $(document).ready(function(){
+            $('#button').click(function(){
+                $('#button_div').html('')
+                //这里的3是从ajax请求获得的
+                for(var i = 0; i < 3; i++) {
+                    var url = '/url/' + i
+                    //这里输出的URL符合期望
+                    console.log('url: ' + url)
+                    var div = $('<div/>', {
+                        'id': 'id' + i,
+                        'text': 'text' + i,
+                        'value': i,//通过这样加入一个属性解决
+                        'click': function(e){
+                            //问题：这里输出的url永远是: /url/2
+                            //期望: 不同的按钮输出不同: /url/0, /url/1, /url/2
+                            console.log('click: ' + url)
+                            console.log(this)
+                            console.log($(this).attr('value'))
+                            var value = $(this).find('input').value
+                            console.log(value)
+                        }
+                    })
+                    var input = $('<input>', {
+                        'type': 'hidden',
+                        'value': i
+                    })
+                    div.append(input)
+                    $('#button_div').append(div)
+                }
+                console.log(i)
+            })
+        })
+    </script>
+</head>
+<body>
+    <button id="button">button</button>
+    <div id="button_div"></div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/webjars/jquery/jquery.min.js"></script>
+    <script>
+        //通配符
+        $(document).ready(function(){
+            alert($('#seat > * > button').length)
+        })
+    </script>
+</head>
+<body>
+<div id="seat">
+    <div id="seat_1">
+        <button>ok1</button>
+        <button>ok2</button>
+    </div>
+</div>
+</body>
+</html>

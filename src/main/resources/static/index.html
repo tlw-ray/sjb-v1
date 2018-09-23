@@ -9,241 +9,153 @@
     <script src="/webjars/stomp-websocket/stomp.min.js"></script>
     <link href="/webjars/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <script>
+        var endpointURL = '/onk/endpoint'
         $(document).ready(function () {
-            //准备创建房间
-            $('#create_room_button').click(function () {
-                $('#home').hide();
-                $('#create_room_div').show()
-                $('#join_room_div').hide()
+            //订阅个人频道
+            var queueURL = '/user/queue'
+            var queueSock = new SockJS(endpointURL)
+            var queueStomp = Stomp.over(queueSock)
+            queueStomp.connect({}, function (frame) {
+                //记录当前客户端玩家身份
+                $('#player_hidden').val(frame['headers']['user-name'])
+                queueStomp.subscribe(queueURL, function (message) {
+                    var xskrMessage = JSON.parse(message.body)
+                    //将收到消息的message显示
+                    if (xskrMessage.message != null) {
+                        $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
+                    }
+                    disableAll()
+                    //处理个人频道推送的信息
+                    processUserQueueAction(xskrMessage)
+                })
             })
-            //准备加入房间
-            $('#join_room_button').click(function () {
-                $('#home').hide();
-                $('#create_room_div').hide()
-                $('#join_room_div').show()
-            })
-            //创建时勾选角色时计算房间能够容纳的人数（座位数）
-            $('#create_room_div :checkbox').click(function () {
-                var size = $('#create_room_div input:checked').length
-                $('#apply_create_button').html('(人数:' + (size - 3) + ') 确定')
-                $('#create_room_div').show()
-            })
+
+            $('#create_join_div').show()
+            $('#room_div').hide()
+
             //确定创建新房间
-            $('#apply_create_button').click(function () {
-                var selectedCharacter = $("#create_room_div input:checked").map(function () {
-                    return this.value
-                }).get()
-                var stringify = JSON.stringify(selectedCharacter)
+            $('#create_room_button').click(function () {
                 $.ajax({
                     url: '/onk/room',
                     type: 'POST',
-                    data: stringify,
                     Accept: "application/json",
                     contentType: "application/json",
-                    success: function (room) {
-                        //根据创建房间返回的房间基础信息，进入该房间
-                        joinRoom(room)
+                    success: function (roomID) {
+                        //更新创建的房间ID
+                        $('#room_id_number').val(roomID)
+                        //加入房间
+                        joinRoom()
                     },
                     error: function (ex) {
-                        console.log(ex)
-                    }
-                });
-            })
-            //确定加入已有房间
-            $('#apply_join_button').click(function () {
-                //根据房间ID取房间信息
-                var roomID = $('#room_id_input').val()
-                //获取房间基础信息
-                $.ajax({
-                    url: '/onk/room/' + roomID,
-                    type: 'GET',
-                    Accept: "application/json",
-                    contentType: "application/json",
-                    success: function (room) {
-                        joinRoom(room)
-                    },
-                    error: function (ex) {
-                        alert('加入失败-_-')
                         console.log(ex)
                     }
                 })
             })
 
+            //确定加入已有房间
+            $('#apply_join_button').click(function () {
+                //进入指定ID的房间
+                var roomID = $('#room_id_number').val()
+                joinRoom()
+            })
+
+            //创建时勾选角色时计算房间能够容纳的人数(座位数)
+            $('#create_room_div :checkbox').click(function () {
+                var size = $('#create_room_div input:checked').length
+                $('#apply_create_button').html('(人数:' + (size - 3) + ') 确定')
+                $('#create_room_div').show()
+            })
+
+            $('#config_card_div > :checkbox').each(function(idx, element){
+                $(element).bind('click', {}, function(e){
+                    var selectedCards = $("#config_card_div input:checked").map(function () {
+                        return this.value
+                    }).get()
+                    var roomID = $('#room_id_number').val()
+                    $.ajax({
+                        url: '/onk/' + roomID + '/cards',
+                        type: 'POST',
+                        data: JSON.stringify(selectedCards),
+                        Accept: "application/json",
+                        contentType: "application/json",
+                        success: function () {
+                        },
+                        error: function (ex) {
+                            console.log(ex)
+                        }
+                    })
+                })
+            })
+
             //准备，开始游戏
-            $('#ready_input').click(function () {
+            $('#ready_checkbox').click(function () {
                 //清空之前的获胜信息
                 $('.outcome').html('')
                 //清空消息栏
                 $('#messages_div').html('')
                 $.ajax({
-                    url: '/onk/' + $('#room_id_span').html() + '/ready/' + $('#ready_input').prop('checked'),
+                    url: '/onk/' + $('#room_id_span').html() + '/ready/' + $('#ready_checkbox').prop('checked'),
                     Accept: 'application/json',
                     contentType: 'application/json',
                     success: function (ready) {
                         console.log('ready: ' + ready)
-                        $('#ready_input').prop('checked', ready)
+                        $('#ready_checkbox').prop('checked', ready)
                     },
                     error: function (ex) {
                         console.log(JSON.stringify(ex))
                     }
                 })
             })
-        })
 
-        function joinRoom(roomInfo) {
-
-            //刷新房间牌垛信息
-            $('#deck_list_div').html('')
-            var deckButton0 = $('<button/>', {
-                'id': 'deck_button_0',
-                'value': 0,
-                'text': '牌0',
-                'click': function(){
-                    ajaxGet('/onk/' + roomInfo.id + '/deck/0')
-                }
+            $('#exit_button').click(function(){
+                var roomID = $('#room_id_number').val()
+                ajaxGet('/onk/' + roomID + '/leave')
+                $('#create_join_div').show()
+                $('#game_div').hide()
             })
-            var deckButton1 = $('<button/>', {
-                'id': 'deck_button_1',
-                'value': 1,
-                'text': '牌1',
-                'click': function(){
-                    ajaxGet('/onk/' + roomInfo.id + '/deck/1')
-                }
-            })
-            var deckButton2 = $('<button/>', {
-                'id': 'deck_button_2',
-                'value': 2,
-                'text': '牌2',
-                'click': function(){
-                    ajaxGet('/onk/' + roomInfo.id + '/deck/2')
-                }
-            })
-            $('#deck_list_div').append(deckButton0)
-            $('#deck_list_div').append(deckButton1)
-            $('#deck_list_div').append(deckButton2)
-            //TODO 下面这段总是提前被执行, 所以使用上面的静态编码
-            // for(var i = 0; i < roomInfo.deckSize; i++) {
-            //     var id = 'deck_button_' + i
-            //     var url = '/onk/' + roomInfo.id + '/deck/' + i
-            //     var deckButton = $('<button/>', {
-            //         'id': id,
-            //         'value': i,
-            //         'text': '牌' + i,
-            //         'click': ajaxGet(url)
-            //     })
-            //     $('#deck_list_div').append(deckButton)
-            // }
 
-
-            //判定房间是否已满，考虑断线重连，
-            var roomFull = true;
-            if (roomInfo.players.length < roomInfo.seatCount) {
-                roomFull = false;
-            } else if (roomInfo.players.length == roomInfo.seatCount) {
-                //虽然人数已满，如果当前玩家在房间内仍然是可进入的。
-                for (var idx in roomInfo.players) {
-                    var player = roomInfo.players[idx]
-                    if (player.name == roomInfo.currentPlayerName) {
-                        roomFull = false;
-                    }
+            function joinRoom() {
+                var roomID = $('#room_id_number').val()
+                //刷新房间牌垛信息
+                for(var cardPosition = 0; cardPosition < 3; cardPosition++) {
+                    var id = 'deck_button_' + cardPosition
+                    var deckButton = $('<button/>', {
+                        'id': id,
+                        'value': cardPosition,
+                        'text': '牌' + cardPosition
+                    })
+                    deckButton.bind('click', {'cardPosition': cardPosition}, function(e){
+                        var url = '/onk/' + roomID + '/deck/' + e.data.cardPosition
+                        ajaxGet(url)
+                    })
+                    $('#deck_div').append(deckButton)
                 }
-            } else {
-                roomFull = true;
-            }
-            if (roomFull) {
-                alert('房间已满...')
-            } else {
+
                 //加入房间
-                //刷新房间ID信息
-                $('#room_id_span').html(roomInfo.id)
-                //刷新房间座位数量
-                // $('#seat_count_span').html(roomInfo.seatCount)
-                //刷新房间卡牌信息
-                $('#card_list_div').html('')
-                for (var key in roomInfo.cards) {
-                    $('#card_list_div').append('<div>' + getCardName(roomInfo.cards[key]) + '</div>')
-                }
-                console.log("room base information: " + JSON.stringify(roomInfo));
-                //进入房间，并刷新房间玩家信息，订阅该房间的消息
-                var roomID = roomInfo.id;
+                $('#room_id_span').html(roomID)
+                //进入房间，订阅该房间的消息
                 $.ajax({
                     url: '/onk/' + roomID + '/join',
                     Accept: 'application/json',
                     contentType: 'application/json',
-                    success: function (room) {
-                        console.log("room information: " + JSON.stringify(room))
-                        //刷新用户列表和房间配置信息
-                        refreshPlayerList(room)
-                        //进入房间后后显示主要信息，在断线重连后需要
-                        $.ajax({
-                            url: '/onk/' + roomID + '/keyMessages',
-                            type: 'GET',
-                            Accept: "application/json",
-                            contentType: "application/json",
-                            success: function (messages) {
-                                var messageString = ''
-                                for (var idx in messages) {
-                                    messageString += messages[idx] + '<br>'
-                                }
-                                $('#messages_div').html(messageString)
-                            },
-                            error: function (ex) {
-                                console.log(ex)
-                            }
-                        })
-                        //断线重连根据最后一次clientAction决定行动按钮的具体行为
-                        enableAll()
-                        processUserQueueAction(roomID, room.clientAction)
-                        //提示请准备
-                        $('#messages_div').append('请准备<br>')
-                        var playerName = room['playerName']
-                        $('#who_span').text(playerName)
-                        var endpointURL = '/onk/endpoint'
-                        var queueURL = '/user/queue/' + roomID
-                        var queueSock = new SockJS(endpointURL)
-                        var queueStomp = Stomp.over(queueSock)
-                        queueStomp.connect({}, function (frame) {
-                            console.log(frame)
-                            queueStomp.subscribe(queueURL, function (message) {
-                                console.log(message.body)
-                                var xskrMessage = JSON.parse(message.body)
-                                if (xskrMessage.message != null) {
-                                    $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
-                                }
-                                enableAll()
-                                processUserQueueAction(roomID, xskrMessage.action)
-                            })
-                        })
+                    success: function () {
+                        //进入房间后订阅该房间的公共频道
                         var topicURL = '/topic/' + roomID
                         var topicSock = new SockJS(endpointURL)
                         var topicStomp = Stomp.over(topicSock)
                         topicStomp.connect('guest', 'guest', function (frame) {
-                            console.log(frame)
                             topicStomp.subscribe(topicURL, function (message) {
-                                console.log(message.body)
                                 var xskrMessage = JSON.parse(message.body)
+                                disableAll()
                                 var clientAction = xskrMessage.action
-                                if (clientAction == 'REFRESH_PLAYERS_INFO_ACTION') {
+                                if (clientAction == 'ROOM_CHANGED') {
                                     //刷新房间信息
-                                    var roomID = $('#room_id_span').html()
-                                    $.ajax({
-                                        url: "/onk/room/" + roomID,
-                                        type: 'GET',
-                                        Accept: "application/json",
-                                        contentType: "application/json",
-                                        success: function (room) {
-                                            console.log(room)
-                                            refreshPlayerList(room)
-                                            // needRefreshPlayerStatus = false
-                                            refreshPlayerStatusFunction = null
-                                        },
-                                        error: function (ex) {
-                                            console.log(ex)
-                                        }
-                                    })
-                                } else if (clientAction == 'UNREADY_ACTION') {
+                                    var room = xskrMessage.data
+                                    refreshPlayerList(room)
+                                }else if (clientAction == 'GAME_FINISH') {
                                     //重置ready供玩家开启新一局游戏
-                                    $('#ready_input').prop('checked', false)
+                                    $('#ready_checkbox').prop('checked', false)
+                                    $('#ready_checkbox').prop('disabled', false)
                                     //输出玩家输赢状态
                                     for (var idx in xskrMessage.data) {
                                         var data = xskrMessage.data[idx]
@@ -257,31 +169,16 @@
                                         $('#player_outcome_span_' + data.seat).html(outcomeMessage)
                                     }
                                 } else if (clientAction == 'VOTE_ACTION') {
-                                    //TODO 设定牌垛的选项为不可用，玩家选项为可用(单选)，行动按钮的提交目标为投票
-                                    $('#player_list_div button').prop('onclick', null).off('click')
-                                    $('#player_list_div button').click(function () {
-                                        var selectedSeat = this.value
-                                        playerActionURL = '/onk/' + roomID + '/seat/' + selectedSeat
-                                        ajaxGet(playerActionURL)
-                                    })
-
-                                    // $("#action_button").prop("onclick", null).off("click");
-                                    // $("#action_button").html('投票')
-                                    // $('#action_button').click(function(){
-                                    //     var selectedSeats = $("#player_list_div input:checked").map(function(){return this.value}).get()
-                                    //     playerActionURL = '/onk/' + roomID + '/vote/' + selectedSeats[0]
-                                    //     ajaxGet(playerActionURL)
-                                    // })
+                                    enablePlayersWithoutSelf()
                                 }
                                 if (xskrMessage.message != null) {
                                     $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
                                 }
-
                             })
+                            //初次加入房间找第一个空位坐下
+                            var firstEmptySeat = $('#seat_div > div:empty(playername)').first()
+                            $(firstEmptySeat).click()
                         })
-                        //加入成功后隐藏加入房间面板
-                        $('#create_join_div').hide()
-                        $('#room_div').show()
                     },
                     error: function (ex) {
                         console.log(JSON.stringify(ex))
@@ -289,116 +186,156 @@
                     }
                 })
             }
-        }
+        })
 
-        function processUserQueueAction(roomID, clientAction) {
-            if (clientAction == 'SINGLE_WOLF_ACTION') {
-                //TODO 设定牌垛的选项为可用，玩家选项为不可用，行动按钮的提交目标为孤狼行动
-                disablePlayers()
+        function processUserQueueAction(xskrMessage) {
+            var clientAction = xskrMessage.action
+            if (clientAction == 'ROOM_CHANGED') {
+                //刷新房间信息
+                var room = xskrMessage.data
+                refreshPlayerList(room)
+            }else if(clientAction == 'RECONNECT'){
+                //断线重连
+                //除了刷新房间信息，还需要输出该玩家的关键消息
+                var room = xskrMessage.data
+                var playerName = $('#player_hidden').val()
+                refreshPlayerList(room)
+                for(var i in room.players){
+                    var player = players[i]
+                    if(player['name'] == playerName){
+                        var keyMessages = player['keyMessage']
+                        //显示本局该玩家所有关键游戏信息
+                        var lastXskrMessage
+                        for(var j in keyMessages){
+                            lastXskrMessage = keyMessages[j]
+                            $('#messages_div').append(lastXskrMessage.message + '<br>')
+                        }
+                        //断线重连根据最后一次clientAction决定行动按钮的具体行为
+                        clientAction = lastXskrMessage.action
+                        break
+                    }
+                }
+            }else if (clientAction == 'SINGLE_WOLF_ACTION') {
+                enableDesktopCards()
+                enablePlayersWithoutSelf()
             } else if (clientAction == 'DRUNK_ACTION') {
-                //TODO 设定牌垛的选项为可用，玩家选项为不可用，行动按钮的提交目标为酒鬼行动
-                disablePlayers()
+                enableDesktopCards()
             } else if (clientAction == 'ROBBER_ACTION') {
-                //TODO 设定牌垛的选项为不可用，玩家选项为可用，行动按钮的提交目标为强盗行动
-                disableDesktopCards()
+                enablePlayersWithoutSelf()
             } else if (clientAction == 'SEER_ACTION') {
-                //TODO 设定牌垛的选项为可用，玩家选项为可用，行动按钮的提交目标为预言家行动
+                enableDesktopCards()
+                enablePlayersWithoutSelf()
             } else if (clientAction == 'TROUBLEMAKER_ACTION') {
-                //TODO 设定牌垛的选项为不可用，玩家选项为不可用，行动按钮的提交目标为捣蛋鬼行动
-                disableDesktopCards()
+                enablePlayersWithoutSelf()
             } else if (clientAction == 'VOTE_ACTION') {
-                //TODO 设定牌垛的选项为不可用，玩家选项为可用(单选)，行动按钮的提交目标为投票
-                disableDesktopCards()
+                enablePlayersWithoutSelf()
             } else if (clientAction == 'HUNTER_VOTE_ACTION') {
-                // //TODO 设定牌垛的选项为不可用，玩家选项为可用(单选)，行动按钮的提交目标为投票
-                // $("#action_button").prop("onclick", null).off("click")
-                // $("#action_button").html('投票')
-                // $('#action_button').click(function () {
-                //     var selectedSeats = $("#player_list_div input:checked").map(function () {
-                //         return this.value
-                //     }).get()
-                //     playerActionURL = '/onk/' + roomID + '/hunter/vote/' + selectedSeats[0]
-                //     ajaxGet(playerActionURL)
-                // })
-                disableDesktopCards()
+                enablePlayersWithoutSelf()
             } else {
                 console.log("Unsupported action: " + clientAction)
             }
         }
 
-        function enableAll(){
-            console.log('enableAll()')
-            $('#room_div > button').attr('disabled', false)
+        function disableAll(){
+            $('input').prop('disabled', true)
+            //玩家的DIV不能再点击
+            // $('input').prop('onclick', null).off('click')
+            // $('div').prop('onclick', null).off('click')
         }
 
-        function disableDesktopCards(){
-            $('#deck_div > button').attr('disabled', true)
+        function enableDesktopCards(){
+            $('#deck_div > button').prop('disabled', false)
         }
 
-        function disablePlayers(){
-            $('#player_list_div > button').attr('disabled', true)
-        }
-
-        function clearClick(){
-            $("#room_div > button").prop("onclick", null).off("click")
+        function enablePlayersWithoutSelf(){
+            $('#seat_div > * > button').prop('disabled', false)
+            //不能点自己
+            var playerName = $('#player_hidden').val()
+            alert($('#seat_div > div[playerName="' + playerName + '"]').length)
+            $('#seat_div > div[playerName="' + playerName + '"]').prop('disabled', true)
         }
 
         function refreshPlayerList(room) {
+            $('#create_join_div').hide()
+            $('#room_div').show()
+
+            //刷新房间卡牌信息
+            $('#config_card_div > input').prop('checked', false)
+            for (var i in room.cards) {
+                var card = room.cards[i]
+                var checkboxName = '#' + card.toLowerCase() + '_checkbox'
+                $(checkboxName).prop('checked', true)
+            }
+
+            //如果玩家是房主则可以在准备期间修改房间的卡牌设定
+            if($('#player_hidden').val() == room.owner){
+                $('#config_card_div > :checkbox').prop('disabled', false)
+            }
+
+            //ready可用
+            $('#ready_checkbox').prop('disabled', false)
+
             //构建座位区域
-            $('#player_list_div').html('')
+            $('#seat_div').html('')
             //建立所有的座位区域
             for (var i = 0; i < room.seatCount; i++) {
                 //TODO 修改座位的样式
-                var seatDiv = '<div onclick="' + 'clickSeatDiv(' + i + ')' + '" style="width:90%; height:60px; text-align: left; background-color: gray; border-style: groove" id="seat_div_' + i + '"></div>'
-                $('#player_list_div').append(seatDiv)
+                var seatDiv = $('<div/>', {
+                    'style': 'width:90%; height:60px; text-align: left; background-color: gray; border-style: groove',
+                    'id': 'seat_div_' + i
+                })
+                seatDiv.bind('click', {'seat': i}, function(e){
+                    //点击空白座位
+                    e.cancelBubble = true
+                    e.stopPropagation()     //阻止事件向上传递
+                    e.preventDefault()      //放弃默认的行为，例如双击选中
+                    var roomID = $('#room_id_span').html()
+                    var url = '/onk/' + roomID + '/seat/' + e.data.seat
+                    ajaxGet(url)
+                })
+                $('#seat_div').append(seatDiv)
             }
             //将玩家放置到座位区域上去
             var players = room.players
-            var currentPlayerName = room.currentPlayerName
             for (var idx in players) {
                 var player = players[idx]
                 var seat = player['seat']
-                var playerName = player['name']
-                var ready = player['ready']
-                var playerInfo = seat + '. ' + playerName;
-                var playerButtonID = 'player_button_' + idx;
-                if (playerName == currentPlayerName) {
-                    //标记当前玩家
-                    playerInfo = '☺' + playerInfo
-                    //刷新当前玩家的准备状态
-                    $('#ready_input').prop('checked', ready)
-                } else {
-                    //do nothing
-                }
-                if(ready){
-                    playerInfo = playerInfo + ' ∞'
-                }else{
-                    //do nothing
-                }
+                if(seat != null && seat >= 0 && seat < room.seatCount){
+                    //当房主改变房间设定时，可能会出现玩家座位超出可用座位数的情况, 这里保障座位是有效的
+                    var playerName = player['name']
+                    var ready = player['ready']
+                    var playerInfo = seat + '. ' + playerName;
+                    var playerButtonID = 'player_button_' + idx;
+                    if (playerName == $('#player_hidden').val()) {
+                        //标记当前玩家
+                        playerInfo = '☺' + playerInfo
+                        //刷新当前玩家的准备状态
+                        $('#ready_checkbox').prop('checked', ready)
+                    } else {
+                        //do nothing
+                    }
 
-                var playerButton = $('<button/>', {
-                    'id': playerButtonID,
-                    'value': seat,
-                    'text': playerInfo,
-                    'click': ajaxGet('/onk/' + room.id + '/seat/' + seat)
-                })
-                var outcome = $('<span/>', {
-                    'class': 'outcome',
-                    'id': 'player_outcome_span_' + seat
-                })
-                // var playerButton = '<button id="' + playerButtonID + '" value="' + seat + '">' + playerInfo + '</button>';
-                // var outcome = '<span class="outcome" id="player_outcome_span_' + seat + '"></span>';
-                // $('#seat_div_' + seat).html(playerButton + outcome)
-                $('#seat_div_' + seat).append(playerButton)
-                $('#seat_div_' + seat).append(outcome)
+                    if(ready){
+                        playerInfo = playerInfo + ' ∞'
+                    }else{
+                        //do nothing
+                    }
+
+                    var playerButton = $('<button/>', {
+                        'id': playerButtonID,
+                        'text': playerInfo
+                    })
+
+                    var outcome = $('<span/>', {
+                        'class': 'outcome',
+                        'id': 'player_outcome_span_' + seat
+                    })
+
+                    $('#seat_div_' + seat).append(playerButton)
+                    $('#seat_div_' + seat).append(outcome)
+                    $('#seat_div_' + seat).attr('playerName', playerName)
+                }
             }
-        }
-
-        function clickSeatDiv(seatID) {
-            //点击空白座位
-            var roomID = $('#room_id_span').html()
-            var url = '/onk/' + roomID + '/seat/' + seatID
-            ajaxGet(url)
         }
 
         function disconnect() {
@@ -409,13 +346,13 @@
         }
 
         function ajaxGet(url) {
+            console.log('call: ' + url)
             $.ajax({
                 url: url,
                 type: 'GET',
                 Accept: "application/json",
                 contentType: "application/json",
                 success: function (data) {
-                    console.log('call: ' + url)
                     return data
                 },
                 error: function (ex) {
@@ -497,120 +434,87 @@
             height: 60px;
             margin-left: 10px;
         }
+        #config_card_div > label{
+            margin-right: 20px
+        }
     </style>
 </head>
 <body>
+<!--
+结构:
+create_join_div
+room_div
+	config_div
+		config_card_div
+	info_div
+	game_div
+		seat_div
+		message_div
+		card_div
+-->
+<input type="hidden" id="player_hidden">
 <div id="create_join_div" class="container">
-    <div id="home">
-        <!--<img class="logo" src="logo.jpg">-->
-        <div id="create_join_button_div" class="row">
-            <button id="create_room_button">创建</button>
-            <button id="join_room_button">加入</button>
-            <br><br>
-        </div>
-    </div>
-
-    <div id="create_room_div" class="col-md-5" hidden>
-        <div id="imgs">
-            <img src="狼人.jpg"><img src="预言家.jpg"><img src="猎人.jpg"><img src="村民.jpg">
-        </div>
-        <div>
-            <div>
-                <div>狼人阵营:</div>
-                <br>
-                <div style="margin-left:50px">
-                    <input id="cb_werewolf_1" type="checkbox" value="WEREWOLF_1" checked>
-                    <label for="cb_werewolf_1">狼人</label>
-                    <input id="cb_werewolf_2" type="checkbox" value="WEREWOLF_2">
-                    <label for="cb_werewolf_2">狼人</label>
-                    <input id="minion" type="checkbox" value="MINION" checked>
-                    <label for="minion">爪牙</label>
-                </div>
-                <br>
-            </div>
-            <div>
-                <div>村民阵营:</div>
-                <br>
-                <div style="margin-left:50px">
-                    <input id="cb_mason_1" type="checkbox" value="MASON_1">
-                    <label for="cb_mason_1">守夜人</label>
-                    <input id="cb_mason_2" type="checkbox" value="MASON_2">
-                    <label for="cb_mason_2">守夜人</label>
-                </div>
-                <br>
-                <div style="margin-left:50px">
-                    <input id="cb_seer" type="checkbox" value="SEER" checked>
-                    <label for="cb_seer">预言家</label>
-                    <input id="cb_robber" type="checkbox" value="ROBBER" checked>
-                    <label for="cb_robber">盗贼</label>
-                    <input id="cb_troublemaker" type="checkbox" value="TROUBLEMAKER">
-                    <label for="cb_troublemaker">捣蛋鬼</label>
-                </div>
-                <br>
-                <div style="margin-left:50px">
-                    <input id="cb_drunk" type="checkbox" value="DRUNK">
-                    <label for="cb_drunk">酒鬼</label>
-                    <input id="cb_insomniac" type="checkbox" value="INSOMNIAC">
-                    <label for="cb_insomniac">失眠者</label>
-                    <input id="cb_hunter" type="checkbox" value="HUNTER" checked>
-                    <label for="cb_hunter">猎人</label>
-                </div>
-                <br>
-                <div style="margin-left:50px">
-                    <input id="cb_villager_1" type="checkbox" value="VILLAGER_1">
-                    <label for="cb_villager_1">村民</label>
-                    <input id="cb_villager_2" type="checkbox" value="VILLAGER_2">
-                    <label for="cb_villager_2">村民</label>
-                    <input id="cb_villager_3" type="checkbox" value="VILLAGER_3">
-                    <label for="cb_villager_3">村民</label>
-                </div>
-                <br>
-            </div>
-            <div>
-                <div>皮匠阵营:</div>
-                <br>
-                <div style="margin-left:50px">
-                    <input id="cb_tanner" type="checkbox" value="TANNER">
-                    <label for="cb_tanner">皮匠</label>
-                </div>
-            </div>
-        </div>
-        <hr/>
-        <div style="width: 100%;text-align: center;">
-            <button id="apply_create_button">确定</button>
-        </div>
-    </div>
-    <div id="join_room_div" class="row" hidden>
-        <label for="room_id_input">房间号: </label>
-        <input type="number" id="room_id_input" value="1"><br><br>
-        <hr/>
-        <button id="apply_join_button">确定</button>
-    </div>
+    <!--<img class="logo" src="logo.jpg">-->
+    <button id="create_room_button">创建房间</button><hr>
+    <label for="room_id_number">房间号:</label>
+    <input type="number" id="room_id_number" value="0"><br>
+    <button id="apply_join_button">加入房间</button>
 </div>
 <div id="room_div" class="container" hidden>
-    <div id="room_info_div" class="row">
-        <div class="col-sm-8 col-lg-8 col-md-8 col-xs-8">
-            <span id="who_span"></span>
-            <input type="checkbox" id="ready_input">
-            <label for="ready_input">准备</label>
+    <div id="config_card_div" class="row">
+        <input type="checkbox" id="doppelganger_checkbox" value="DOPPELGANGER" disabled>
+        <label for="doppelganger_checkbox">化</label>
+        <input type="checkbox" id="werewolf_1_checkbox" value="WEREWOLF_1">
+        <label for="werewolf_1_checkbox">狼</label>
+        <input type="checkbox" id="werewolf_2_checkbox" value="WEREWOLF_2">
+        <label for="werewolf_2_checkbox">狼</label>
+        <input type="checkbox" id="minion_checkbox" value="MINION">
+        <label for="minion_checkbox">爪</label>
+        <input type="checkbox" id="seer_checkbox" value="SEER">
+        <label for="seer_checkbox">预</label>
+        <input type="checkbox" id="robber_checkbox" value="ROBBER">
+        <label for="robber_checkbox">盗</label>
+        <input type="checkbox" id="troublemaker_checkbox" value="TROUBLEMAKER">
+        <label for="troublemaker_checkbox">捣</label>
+        <input type="checkbox" id="insomniac_checkbox" value="INSOMNIAC">
+        <label for="insomniac_checkbox">失</label>
+        <input type="checkbox" id="hunter_checkbox" value="HUNTER">
+        <label for="hunter_checkbox">猎</label>
+        <input type="checkbox" id="drunk_checkbox" value="DRUNK">
+        <label for="drunk_checkbox">酒</label>
+        <input type="checkbox" id="mason_1_checkbox" value="MASON_1">
+        <label for="mason_1_checkbox">守</label>
+        <input type="checkbox" id="mason_2_checkbox" value="MASON_2">
+        <label for="mason_2_checkbox">守</label>
+        <input type="checkbox" id="villager_1_checkbox" value="VILLAGER_1">
+        <label for="villager_1_checkbox">村</label>
+        <input type="checkbox" id="villager_2_checkbox" value="VILLAGER_2">
+        <label for="villager_2_checkbox">村</label>
+        <input type="checkbox" id="villager_3_checkbox" value="VILLAGER_3">
+        <label for="villager_3_checkbox">村</label>
+        <input type="checkbox" id="tanner_checkbox" value="TANNER">
+        <label for="tanner_checkbox">厌</label>
+    </div>
+    <div id="info_div" class="row">
+        <div class="col-sm-4 col-lg-4 col-md-4 col-xs-4">
+            <input type="checkbox" id="ready_checkbox">
+            <label for="ready_checkbox">准备</label>
         </div>
-        <label class="col-sm-2 col-lg-2 col-md-2 col-xs-2">房间号: <span id="room_id_span"></span></label>
+        <div class="col-sm-2 col-lg-2 col-md-2 col-xs-2">
+            <label >房间号: <span id="room_id_span"></span></label>
+        </div>
+        <div class="col-sm-6 col-lg-6 col-md-6 col-xs-6">
+            <button id="exit_button">退出</button>
+        </div>
     </div>
 
-    <div class="row">
-        <div id="player_list_div" class="col-sm-4 col-lg-4 col-md-4 col-xs-4">
+    <div id="game_div" class="row">
+        <div id="seat_div" class="col-sm-4 col-lg-4 col-md-4 col-xs-4">
 
         </div>
         <div id="messages_div" class="col-sm-5 col-lg-5 col-md-5 col-xs-5"></div>
         <div id="deck_div" class="col-sm-2 col-lg-2 col-md-2 col-xs-2">
-            <div id="deck_list_div">
 
-            </div>
-        </div>
-        <div id="card_div" class="col-sm-1 col-lg-1 col-md-1 col-xs-1">
-            <div id="card_list_div">
-
-            </div>
         </div>
     </div>
 </div>

@@ -13,17 +13,19 @@ public class TestRoom {
     public void testCreateRoom(){
         int playerCount = 9;
         int cardCount = 9 + Room.TABLE_DECK_THICKNESS;
-        List<Card> cards = CardUtil.getCards(cardCount);
-        Room room = new Room(1, cards);
+        Card[] cards = CardUtil.getCards(cardCount);
+        Room room = null;
         for(int i=0;i<playerCount;i++){
+            String playerName = "player" + i;
+            if(i == 0 ){
+                room = new Room(0, playerName);
+                //房主分配卡牌
+                room.setCards(cards);
+            }
+            //玩家进房间就坐准备
             room.join("player" + i);
-        }
-
-        // 所有玩家进入准备状态则自然开始游戏
-        Set<Player> players = room.getPlayers();
-        Assert.assertEquals(playerCount, players.size());
-        for(Player player:players){
-            room.setReady(player.getName(), true);
+            room.pickSeat(playerName, i);
+            room.setReady(playerName, true);
         }
 
         // 游戏开始后为每个玩家发牌，并留下三张牌作为桌面上的牌垛
@@ -49,7 +51,7 @@ public class TestRoom {
         }
         Player robber = room.getPlayerByInitializeCard(Card.ROBBER);
         if(robber != null){
-            room.pickPlayer(robber.getName(), 5);
+            room.pickSeat(robber.getName(), 5);
         }
         Player troublemaker = room.getPlayerByInitializeCard(Card.TROUBLEMAKER);
         if(troublemaker != null){
@@ -64,8 +66,8 @@ public class TestRoom {
                 seat1 = troublemaker.getSeat() - 1;
                 seat2 = troublemaker.getSeat() + 1;
             }
-            room.pickPlayer(troublemaker.getName(), seat1);
-            room.pickPlayer(troublemaker.getName(), seat2);
+            room.pickSeat(troublemaker.getName(), seat1);
+            room.pickSeat(troublemaker.getName(), seat2);
 
         }
         Player drunk = room.getPlayerByInitializeCard(Card.DRUNK);
@@ -104,13 +106,13 @@ public class TestRoom {
         if(hunter != null){
             for(Player player:room.getPlayers()){
 //                player.setVoteSeat(hunter.getSeat());
-                room.pickPlayer(player.getName(), hunter.getSeat());
+                room.pickSeat(player.getName(), hunter.getSeat());
             }
 
             if(wolf != null) {
                 //2.1 猎人投了狼: 村民阵营胜利
 //                room.hunterVote(hunter.getName(), wolf.getSeat());
-                room.pickPlayer(hunter.getName(), wolf.getSeat());
+                room.pickSeat(hunter.getName(), wolf.getSeat());
             }else{
                 System.out.println("场面上没有狼存在，无法模拟有狼且猎人被投出的情况。");
             }

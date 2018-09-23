@@ -16,22 +16,18 @@ public class Room {
 
     //房间号
     private int id;
-
     // 该房间支持的所有卡牌
     private Card[] cards;
-
     // 进入房间的玩家，但可能还没有入座
-    private Set<Player> players;
+    private Set<Player> players = new TreeSet();
+//    // 进入房间的玩家，未入座的玩家
+//    private Set<Player> observers = new TreeSet();
     // 发牌后剩余的桌面3张牌垛
     private TreeMap<Integer, Card> tableDeck = new TreeMap();
+    // 房主用户名
+    private String owner;
 
 
-    // 玩家姓名到玩家的索引
-    private Map<String, Player> namePlayerMap;
-//    // 发牌后卡牌到玩家索引(原始身份)
-//    private Map<Card, Player> initializeCardPlayerMap;
-    // 玩家就坐后座位号到玩家索引
-    private Map<Integer, Player> seatPlayerMap;
 
     // 玩家夜间操作
     private Integer singleWolfCheckDeck;
@@ -44,136 +40,132 @@ public class Room {
     private Integer drunkExchangeDeck;
     private boolean hunterVote = false;
 
-    //用于发送WebSocket信息
-    private SimpMessagingTemplate simpMessagingTemplate;
-
     //游戏是否处于开始状态，如果是就不能再进行准备切换
     private Scene scene = Scene.PREPARE;
 
-    //存放发出当前行动的玩家名，供客户端使用, TODO 应由框架引入
-    private String currentPlayerName;
     //存放单个玩家最后一次行动信息, 供客户端使用
     private ClientAction clientAction;
 
-    //存放客户端的关键信息，供断线重连后查看
-    private Map<Player, List<XskrMessage>> playerMessagesMap;
-    //存放玩家最后一次行动信息，供断线重连后操作
-    private Map<Player, ClientAction> playerClientActionMap;
+    //用于发送WebSocket信息
+    private SimpMessagingTemplate simpMessagingTemplate;
 
-    public Room(int id, List<Card> cardList){
-        logger.debug("Room(cardList = {})", Arrays.toString(cardList.toArray()));
+    public Room(int id, String owner){
+        logger.debug("Room(id={}, owner={})", id, owner);
         this.id = id;
-        this.cards = cardList.toArray(new Card[0]);
-        int seatCount = getSeatCount();
-        this.players = new TreeSet();
-
-        this.seatPlayerMap = new HashMap(seatCount);
-        this.namePlayerMap = new HashMap(seatCount);
-        this.playerMessagesMap = new HashMap(seatCount);
-        this.playerClientActionMap = new HashMap(seatCount);
+        this.owner = owner;
+        this.cards = new Card[]{
+            Card.WEREWOLF_1, Card.MINION, Card.SEER, Card.ROBBER, Card.INSOMNIAC
+        };
     }
 
     public int getSeatCount(){
-        return cards.length - TABLE_DECK_THICKNESS;
-    }
-
-    /**
-     * 玩家进入房间
-     * @param playerName
-     * @return 返回玩家座位
-     */
-    public void join(String playerName){
-        logger.debug("join(playerName = {})", playerName);
-        Player player = namePlayerMap.get(playerName);
-        if(player != null){
-            //玩家已经在该房间, 断线重连
+        if(cards == null){
+            return -1;
         }else{
-            player = new Player(playerName);
-            //玩家进入该房间
-            if(players.size() < getSeatCount()){
-                //房间未满
-                //为玩家分配一个座位, 从0到最大座位数遍历，发现一个座位没有人便分配
-                for(int i=0;i<getSeatCount();i++){
-                    if(seatPlayerMap.get(i) == null){
-                        seatPlayerMap.put(i, player);
-                        namePlayerMap.put(playerName, player);
-                        player.setSeat(i);
-                        players.add(player);
-                        break;
-                    }
-                }
-                String messageContent = String.format("%s加入房间。", player.getName());
-                XskrMessage xskrMessage = new XskrMessage(messageContent, ClientAction.REFRESH_PLAYERS_INFO_ACTION, null);
-                sendMessage(xskrMessage);
-            }else{
-                throw new RuntimeException("房间已满");
-            }
+            return cards.length - TABLE_DECK_THICKNESS;
         }
     }
 
     /**
-     * 玩家离开房间
-     * @param playerName
+     * 玩家进入房间
+     * @param userName
+     * @return 返回房间信息，用来区分断线重连
      */
-    public void leave(String playerName){
-        logger.debug("leave(playerName = {})", playerName);
-        Player player = namePlayerMap.get(playerName);
+    public void join(String userName){
+        logger.debug("join(userName = {})", userName);
+        Player player = getPlayerByName(userName);
+
+        String message;
+        ClientAction clientAction;
+        if(player != null){
+            //玩家已经在该房间, 玩家断线重连
+            message = String.format("%s断线重连回到房间", userName);
+            clientAction = ClientAction.RECONNECT;
+        }else{
+            //新用户加入房间
+            player = new Player(userName);
+            player.setRoom(this);
+            players.add(player);
+            message = String.format("%s加入了房间", userName);
+            clientAction = ClientAction.ROOM_CHANGED;
+        }
+        //TODO 需要考虑房间的最大observer容量吗？
+        //无论是断线重连还是新用户进入，都返回给他私人消息告知房间内的情况
+        XskrMessage xskrMessage = new XskrMessage(message, clientAction, this);
+        sendMessage(player, xskrMessage);
+    }
+
+    /**
+     * 玩家离开房间
+     * @param userName
+     */
+    public void leave(String userName){
+        logger.debug("leave(userName = {})", userName);
+        Player player = getPlayerByName(userName);
         if(player != null && scene == Scene.PREPARE) {
             players.remove(player);
-            //TODO 需要清理索引,用户在游戏进行时离开会导致游戏无法继续
-            namePlayerMap.remove(playerName);
-            seatPlayerMap.remove(player.getSeat());
-            player.setReady(false);
-            player.setInitializeCard(null);
-            player.setCard(null);
-            player.setVoteSeat(null);
-            player.setSeat(null);
-            player.setVotedCount(0);
+            player.setRoom(null);
+            player.reset();
+            if(isPlayer(player) && players.size()>0){
+                String message = String.format("%s离开房间", player.getName());
+                XskrMessage xskrMessage = new XskrMessage(message, ClientAction.ROOM_CHANGED, this);
+                sendMessage(xskrMessage);
+            }
         }
     }
 
     /**
      * 玩家坐到指定位置, 当所有玩家都准备好时游戏自动开始
      * TODO 或许应该加个倒数5,4,3,2,1
-     * @param playerName 玩家
+     * @param userName 玩家
      * @return 该玩家最终处于的ready状态
      */
-    public boolean setReady(String playerName, boolean ready){
+    public boolean setReady(String userName, boolean ready){
         if(scene == Scene.ACTIVATE || scene == Scene.VOTE) {
             //如果已经开始或正在投票则不可改变ready状态
             return true;
         }else if(scene == Scene.PREPARE){
-            logger.debug("setReady(playerName = {}, ready = {})", playerName, ready);
-            Player player = namePlayerMap.get(playerName);
+            logger.debug("setReady(userName = {}, ready = {})", userName, ready);
+            Player player = getPlayerByName(userName);
             if(player != null) {
-                try {
-                    //设定该玩家的ready状态
-                    player.setReady(ready);
-                    return ready;
-                }finally{
-                    //检查是否能够触发游戏开始事件
-                    //如果玩家数量达到座位数量，且玩家都是ready状态则触发新游戏事件
-                    if(players.size() == getSeatCount()) {
-                        boolean newGame = true;
-                        for (Player player1 : players) {
-                            if (!player1.isReady()) {
-                                newGame = false;
-                                break;
+                if(isObserver(player)){
+                    //如果是观看者，ready始终是false状态
+                    return false;
+                }else if(isPlayer(player)){
+                    //如果是玩家可以切换其ready状态
+                    try {
+                        //设定该玩家的ready状态
+                        player.setReady(ready);
+                        return ready;
+                    }finally{
+                        //检查是否能够触发游戏开始事件
+                        //如果玩家数量达到座位数量，且玩家都是ready状态则触发新游戏事件
+                        if(players.size() == getSeatCount()) {
+                            boolean newGame = true;
+                            for (Player player1 : players) {
+                                if (!player1.isReady()) {
+                                    newGame = false;
+                                    break;
+                                }
                             }
+                            if(newGame) {
+                                newGame();
+                            }
+                        }else{
+                            //人数未达到座位数游戏无法开始
                         }
-                        if(newGame) {
-                            newGame();
-                        }
-                    }else{
-                        //人数未达到座位数游戏无法开始
                     }
+                }else{
+                    //不支持的状况
+                    throw new RuntimeException(String.format("%s的身份状态不正确", player.getName()));
                 }
             }else{
-                String message = String.format("玩家%s不在该房间，无法设定准备状态。", playerName);
+                String message = String.format("玩家%s不在该房间，无法设定准备状态。", userName);
                 throw new RuntimeException(message);
             }
         }else{
-            throw new RuntimeException("未支持的状态: " + scene);
+            //TODO 客户端应根据场景控制Ready按钮可用性，禁止用户发出此请求
+            throw new RuntimeException("未支持的场景: " + scene);
         }
     }
 
@@ -195,6 +187,34 @@ public class Room {
         return null;
     }
 
+    public Player getPlayerByName(String userName){
+        for(Player player:players){
+            if(player.getName().equals(userName)){
+                return player;
+            }
+        }
+        return null;
+    }
+
+    public boolean isObserver(Player player){
+        if(player.getSeat() == null){
+            //没有座位，是观众
+            return true;
+        }else{
+            if(player.getSeat()>=0 && player.getSeat()<getSeatCount()){
+                //有座位且该座位符合房间角色设置
+                return false;
+            }else{
+                //有座位但该座位无效
+                return true;
+            }
+        }
+    }
+
+    public boolean isPlayer(Player player){
+        return player.getSeat() != null && player.getSeat()>=0 && player.getSeat()<getSeatCount();
+    }
+
     /**
      * 根据卡牌查询用户，卡牌是夜晚行动过后被交换过的
      * @param card
@@ -210,7 +230,13 @@ public class Room {
     }
 
     public Player getPlayerBySeat(int seat){
-        return seatPlayerMap.get(seat);
+        System.out.println(JSON.toJSONString(players, true));
+        for(Player player:players){
+            if(player.getSeat() != null && player.getSeat() == seat){
+                return player;
+            }
+        }
+        return null;
     }
     /**
      * 初始化一局游戏
@@ -222,15 +248,14 @@ public class Room {
         }
 
         //检查玩家是否都已经就坐, 座位号是否符合逻辑
-        for(int i = 0; i < getSeatCount(); i++){
-            int seatNumber = i;
-            Player player = seatPlayerMap.get(seatNumber);
+        for(int seat = 0; seat < getSeatCount(); seat++){
+            Player player = getPlayerBySeat(seat);
             if(player != null) {
-                if (player.getSeat() != seatNumber) {
+                if (player.getSeat() != seat) {
                     throw new RuntimeException(String.format("玩家%s的座位号不符合逻辑.", JSON.toJSONString(player)));
                 }
             }else{
-                throw new RuntimeException(String.format("座位%s处没有玩家.", i));
+                throw new RuntimeException(String.format("座位%s处没有玩家, 但已就坐玩家数量已达到房间要求.", seat));
             }
         }
 
@@ -285,38 +310,35 @@ public class Room {
         //发牌结束后根据身份为每个玩家发送行动提示信息
         Map<Player, XskrMessage> playerXskrMessageMap = new HashMap();
         boolean directVote = true;
-        for(Map.Entry<Card, Player> entry: initializeCardPlayerMap.entrySet()){
-            Player player = entry.getValue();
-            if(player != null) {
-                String message;
-                ClientAction clientAction = null;
-                if(player == singleWolf){
-                    message = String.format("请勾选牌1、牌2、牌3中的一张，点击“行动”，来查看桌面牌垛中对应的卡牌。");
-                    clientAction = ClientAction.SINGLE_WOLF_ACTION;
-                    directVote = false;
-                }else if (player == seer) {
-                    message = "请勾选牌1、牌2、牌3中的任意两个来查看的桌面牌垛中对应的卡牌，或者勾选一位玩家，点击“行动”来查看其身份。";
-                    clientAction = ClientAction.SEER_ACTION;
-                    directVote = false;
-                }else if(player == robber){
-                    message = "请输勾选任意玩家，点击“行动”查阅其卡牌并交换身份。";
-                    clientAction = ClientAction.ROBBER_ACTION;
-                    directVote = false;
-                }else if(player == troublemaker){
-                    message = "请勾选除您之外两个玩家，点击“行动”，交换他们的身份。";
-                    clientAction = ClientAction.TROUBLEMAKER_ACTION;
-                    directVote = false;
-                }else if(player == drunk){
-                    message = "请勾选牌1、牌2、牌3中任意一张，点击“行动”与之交换身份。";
-                    clientAction = ClientAction.DRUNK_ACTION;
-                    directVote = false;
-                }else{
-                    message = "所有玩家行动完成后，系统会给出下一步的信息。";
-                }
-                //预备玩家身份和操作信息
-                XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。<br>" + message, getDisplayName(player.getCard())), clientAction, null);
-                playerXskrMessageMap.put(player, xskrMessage1);
+        for(Player player:players){
+            String message;
+            ClientAction clientAction = null;
+            if(player == singleWolf){
+                message = String.format("请点选牌1、牌2、牌3中的一张，来查看桌面牌垛中对应的卡牌。");
+                clientAction = ClientAction.SINGLE_WOLF_ACTION;
+                directVote = false;
+            }else if (player == seer) {
+                message = "请点选牌1、牌2、牌3中的任意两个来查看的桌面牌垛中对应的卡牌，或者点选一位玩家查看其身份。";
+                clientAction = ClientAction.SEER_ACTION;
+                directVote = false;
+            }else if(player == robber){
+                message = "请输点选任意玩家，查阅其卡牌并交换身份。";
+                clientAction = ClientAction.ROBBER_ACTION;
+                directVote = false;
+            }else if(player == troublemaker){
+                message = "请点选除您之外两个玩家，交换他们的身份。";
+                clientAction = ClientAction.TROUBLEMAKER_ACTION;
+                directVote = false;
+            }else if(player == drunk){
+                message = "请点选牌1、牌2、牌3中任意一张，与之交换身份。";
+                clientAction = ClientAction.DRUNK_ACTION;
+                directVote = false;
+            }else{
+                message = "所有玩家行动完成后，系统会给出下一步的信息。";
             }
+            //预备玩家身份和操作信息
+            XskrMessage xskrMessage1 = new XskrMessage(String.format("您的初始身份是%s。<br>" + message, getDisplayName(player.getCard())), clientAction, null);
+            playerXskrMessageMap.put(player, xskrMessage1);
         }
         //向玩家发送身份和操作提示信息
         for(Map.Entry<Player, XskrMessage> entry:playerXskrMessageMap.entrySet()){
@@ -366,7 +388,7 @@ public class Room {
         }
 
         //检查预言家是否已经行动
-        if(initializeCardPlayerMap.get(Card.SEER) != null){
+        if(getPlayerByInitializeCard(Card.SEER) != null){
             //如果存在预言家角色
             if((seerCheckDeck1 == null || seerCheckDeck2 == null) &&
                     seerCheckPlayer == null){
@@ -377,7 +399,7 @@ public class Room {
         }
 
         // 检查强盗是否已经行动
-        if(initializeCardPlayerMap.get(Card.ROBBER) != null){
+        if(getPlayerByInitializeCard(Card.ROBBER) != null){
             //如果存在强盗玩家
             if(robberSnatchSeat == null){
                 // 如果强盗没有指定要交换的位置
@@ -387,7 +409,7 @@ public class Room {
         }
 
         //检查捣蛋鬼是否已经行动
-        if(initializeCardPlayerMap.get(Card.TROUBLEMAKER) != null){
+        if(getPlayerByInitializeCard(Card.TROUBLEMAKER) != null){
             //如果存在捣蛋鬼玩家
             if(troublemakerExchangeSeat1 == null
                     || troublemakerExchangeSeat2 == null){
@@ -398,7 +420,7 @@ public class Room {
         }
 
         //检查酒鬼是否行动
-        if(initializeCardPlayerMap.get(Card.DRUNK) != null){
+        if(getPlayerByInitializeCard(Card.DRUNK) != null){
             if(drunkExchangeDeck == null){
                 logger.debug("drunk not work!");
                 return false;
@@ -411,8 +433,8 @@ public class Room {
 
     //获得孤狼玩家
     protected Player getSingleWolf(){
-        Player wolf1 = initializeCardPlayerMap.get(Card.WEREWOLF_1);
-        Player wolf2 = initializeCardPlayerMap.get(Card.WEREWOLF_2);
+        Player wolf1 = getPlayerByInitializeCard(Card.WEREWOLF_1);
+        Player wolf2 = getPlayerByInitializeCard(Card.WEREWOLF_2);
         if(wolf1 == null && wolf2 != null){
             return wolf2;
         }else if(wolf1 != null && wolf2 == null){
@@ -428,16 +450,16 @@ public class Room {
         if(canNightAction()){
 //          Player doopelganger = initializeCardPlayerMap.get(Card.DOPPELGANGER);
             Player singleWolf = getSingleWolf();
-            Player wolf1 = initializeCardPlayerMap.get(Card.WEREWOLF_1);
-            Player wolf2 = initializeCardPlayerMap.get(Card.WEREWOLF_2);
-            Player minion = initializeCardPlayerMap.get(Card.MINION);
-            Player meson1 = initializeCardPlayerMap.get(Card.MASON_1);
-            Player meson2 = initializeCardPlayerMap.get(Card.MASON_2);
-            Player seer = initializeCardPlayerMap.get(Card.SEER);
-            Player robber = initializeCardPlayerMap.get(Card.ROBBER);
-            Player troublemaker = initializeCardPlayerMap.get(Card.TROUBLEMAKER);
-            Player drunk = initializeCardPlayerMap.get(Card.DRUNK);
-            Player insomniac = initializeCardPlayerMap.get(Card.INSOMNIAC);
+            Player wolf1 = getPlayerByInitializeCard(Card.WEREWOLF_1);
+            Player wolf2 = getPlayerByInitializeCard(Card.WEREWOLF_2);
+            Player minion = getPlayerByInitializeCard(Card.MINION);
+            Player meson1 = getPlayerByInitializeCard(Card.MASON_1);
+            Player meson2 = getPlayerByInitializeCard(Card.MASON_2);
+            Player seer = getPlayerByInitializeCard(Card.SEER);
+            Player robber = getPlayerByInitializeCard(Card.ROBBER);
+            Player troublemaker = getPlayerByInitializeCard(Card.TROUBLEMAKER);
+            Player drunk = getPlayerByInitializeCard(Card.DRUNK);
+            Player insomniac = getPlayerByInitializeCard(Card.INSOMNIAC);
             //下面的ClientAction可能是投票
             //狼的回合
             if(singleWolf != null){
@@ -506,7 +528,7 @@ public class Room {
                 //查看一位玩家
                 String message = "";
                 if(seerCheckPlayer != null){
-                    Player player = seatPlayerMap.get(seerCheckPlayer);
+                    Player player = getPlayerBySeat(seerCheckPlayer);
                     message = String.format("查看%s号玩家'%s'的身份是: %s",
                             player.getSeat(), player.getName(), getDisplayName(player.getCard()));
                 }else{
@@ -520,13 +542,10 @@ public class Room {
             }
 
             if(robber != null){
-                Player player = seatPlayerMap.get(robberSnatchSeat);
+                Player player = getPlayerBySeat(robberSnatchSeat);
                 Card swapCard = player.getCard();
                 player.setCard(robber.getCard());
                 robber.setCard(swapCard);
-                //更新缓存
-                initializeCardPlayerMap.put(player.getCard(), player);
-                initializeCardPlayerMap.put(robber.getCard(), robber);
                 String message = String.format("交换了%s号玩家'%s'的身份牌%s。",
                         player.getSeat(), player.getName(), swapCard);
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
@@ -534,14 +553,11 @@ public class Room {
                 keepKeyMessage(robber, xskrMessage);
             }
             if(troublemaker != null){
-                Player player1 = seatPlayerMap.get(troublemakerExchangeSeat1);
-                Player player2 = seatPlayerMap.get(troublemakerExchangeSeat2);
+                Player player1 = getPlayerBySeat(troublemakerExchangeSeat1);
+                Player player2 = getPlayerBySeat(troublemakerExchangeSeat2);
                 Card swapCard = player1.getCard();
                 player1.setCard(player2.getCard());
                 player2.setCard(swapCard);
-                //更新缓存
-                initializeCardPlayerMap.put(player1.getCard(), player1);
-                initializeCardPlayerMap.put(player2.getCard(), player2);
                 String message = String.format("交换了%s号玩家'%s'和%s号玩家'%s'的身份牌。",
                         player1.getSeat(), player1.getName(), player2.getSeat(), player2.getName());
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
@@ -552,9 +568,6 @@ public class Room {
                 Card swapCard = tableDeck.get(drunkExchangeDeck);
                 tableDeck.put(drunkExchangeDeck, drunk.getCard());
                 drunk.setCard(swapCard);
-                //更新缓存
-                initializeCardPlayerMap.put(drunk.getCard(), drunk);
-                initializeCardPlayerMap.remove(swapCard, drunk);
                 String message = String.format("交换了牌垛里的第%s张牌。", drunkExchangeDeck);
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(drunk, xskrMessage);
@@ -581,9 +594,9 @@ public class Room {
     }
 
     //接受玩家投票，计算，并公布获胜信息
-    public void vote(String playerName, int seat){
-        logger.debug("vote(playerName = {}, seat= {})", playerName, seat);
-        Player player = namePlayerMap.get(playerName);
+    public void vote(String userName, int seat){
+        logger.debug("vote(userName = {}, seat= {})", userName, seat);
+        Player player = getPlayerByName(userName);
         if(player.getVoteSeat() == null) {
             player.setVoteSeat(seat);
             //票数在finishGame时统计，这里仅做投票
@@ -611,7 +624,7 @@ public class Room {
         boolean hasHunterInPlayers = false;
         for(Player player: players){
             int voteSet = player.getVoteSeat();
-            Player votedPlayer = seatPlayerMap.get(voteSet);
+            Player votedPlayer = getPlayerBySeat(voteSet);
             votedPlayer.beVote();
             if(player.getCard() == Card.WEREWOLF_1 || player.getCard() == Card.WEREWOLF_2){
                 hasWolfInPlayers = true;
@@ -670,7 +683,7 @@ public class Room {
                 // 告知猎人当前投票信息， 提示猎人由他独立投票
                 StringBuilder report = new StringBuilder();
                 for(Player player:players){
-                    Player votedPlayer = seatPlayerMap.get(player.getVoteSeat());
+                    Player votedPlayer = getPlayerBySeat(player.getVoteSeat());
                     report.append(player.getSeat());
                     report.append("号玩家'");
                     report.append(player.getName());
@@ -715,13 +728,7 @@ public class Room {
         List<Summary> summaries = new ArrayList();
         for(Player player:players){
             Card card = player.getCard();
-            Card initializeCard = null;
-            for(Map.Entry<Card, Player> entry: initializeCardPlayerMap.entrySet()){
-                if(player == entry.getValue()){
-                    initializeCard = entry.getKey();
-                    break;
-                }
-            }
+            Card initializeCard = player.getInitializeCard();
             Camp camp = Camp.getCamp(card);
             int seat = player.getSeat();
             boolean outcome = victoryCamp.contains(camp);
@@ -730,86 +737,24 @@ public class Room {
         }
         //解除所有玩家的准备状态，本局游戏结束
         for(Player player:players){
-            player.setReady(false);
+            player.reset();
         }
         hunterVote = false;
         //TODO 通知所有客户端
-        XskrMessage unreadyMessage = new XskrMessage("本局结束， 请勾选‘准备’进入下一局...", ClientAction.UNREADY_ACTION, summaries);
+        XskrMessage unreadyMessage = new XskrMessage("本局结束， 请勾选‘准备’进入下一局...", ClientAction.GAME_FINISH, summaries);
         sendMessage(unreadyMessage);
         //游戏进入停止状态，可以重新准备触发下一轮开始
         scene = Scene.PREPARE;
-
-        //清空每个玩家的关键消息
-        playerMessagesMap.clear();
-        playerClientActionMap.clear();
     }
-
-//    //TODO 检查是否已经行动过了
-//    //捣蛋鬼换牌
-//    public void troublemakerExchangeCard(String userName, int seat1, int seat2){
-//        //TODO check player card is troublemaker
-//        if(troublemakerExchangeSeat1 == null && troublemakerExchangeSeat2 == null){
-//            logger.debug("troublemakerExchangeCard(userName={}, seat1={}, seat2={})", userName, seat1, seat2);
-//            troublemakerExchangeSeat1 = seat1;
-//            troublemakerExchangeSeat2 = seat2;
-//            attemptNightAction();
-//        }
-//    }
-//
-//    //强盗换牌
-//    public void robberSnatchCard(String userName, int seat){
-//        if(robberSnatchSeat == null) {
-//            logger.debug("robberSnatchCard(userName={}, seat={})", userName, seat);
-//            robberSnatchSeat = seat;
-//            attemptNightAction();
-//        }
-//    }
-//    //狼人验牌
-//    public void singleWolfCheckDeck(String userName, int deck){
-//        if(singleWolfCheckDeck == null) {
-//            logger.debug("singleWolfCheckDeck(userName = {}, deck = {})", userName, deck);
-//            singleWolfCheckDeck = deck;
-//            attemptNightAction();
-//            //TODO 如果验到一张狼人牌则可以再验一张
-//        }
-//    }
-//
-//    //预言家验牌
-//    public void seerCheckDeck(String userName, int deck1, int deck2){
-//        if(seerCheckDeck1 == null && seerCheckDeck2 == null) {
-//            logger.debug("seerCheckDeck(userName = {}, deck1 = {}, deck2 = {})", userName, deck1, deck2);
-//            seerCheckDeck1 = deck1;
-//            seerCheckDeck2 = deck2;
-//            attemptNightAction();
-//        }
-//    }
-//
-//    //预言家验人
-//    public void seerCheckPlayer(String userName, int seat){
-//        if(seerCheckPlayer == null) {
-//            logger.debug("seerCheckPlayer(userName={}, seat={})", userName, seat);
-//            seerCheckPlayer = seat;
-//            attemptNightAction();
-//        }
-//    }
-//
-//    //酒鬼换牌
-//    public void drunkExchangeCard(String userName, int deck){
-//        if(drunkExchangeDeck == null) {
-//            logger.debug("drunkExchangeCard(userName = {}, deck = {})", userName, deck);
-//            drunkExchangeDeck = deck;
-//            attemptNightAction();
-//        }
-//    }
 
     //猎人投票
     public void hunterVote(String userName, int seat){
         //TODO 判定该事件是否能够触发
-        Player hunterPlayer = namePlayerMap.get(userName);
+        Player hunterPlayer = getPlayerByName(userName);
         if(hunterPlayer.getCard() == Card.HUNTER) {
             if (hunterVote) {
                 logger.debug("hunterVote(userName = {}, seat = {})", userName, seat);
-                Player player = seatPlayerMap.get(seat);
+                Player player = getPlayerBySeat(seat);
                 Set<Camp> victoryCampSet = new TreeSet();
                 if (player.getCard() == Card.TANNER) {
                     sendMessage(new XskrMessage("皮匠获胜", null, null));
@@ -830,9 +775,9 @@ public class Room {
         }
     }
 
-    public void pickCard(String playerName, int card){
-        logger.debug("pickCard(playerName={}, card={})", playerName, card);
-        Player player = namePlayerMap.get(playerName);
+    public synchronized void pickCard(String userName, int card){
+        logger.debug("pickCard(userName={}, card={})", userName, card);
+        Player player = getPlayerByName(userName);
         //如果卡牌序号信息是合理的
         if (card >= 0 && card < TABLE_DECK_THICKNESS) {
             if(scene == Scene.ACTIVATE) {
@@ -889,101 +834,155 @@ public class Room {
         }
     }
 
-    public void pickPlayer(String playerName, int seat){
-        logger.debug("pickPlayer(playerName={}, seat={})", playerName, seat);
-        Player player = namePlayerMap.get(playerName);
+    public synchronized void pickSeat(String userName, int seat){
+        logger.debug("pickSeat(userName={}, seat={}) scene={}", userName, seat, scene);
+        Player player = getPlayerByName(userName);
         //验证座位的合理性
         if (seat >= 0 && seat < getSeatCount()) {
             if (scene == Scene.ACTIVATE) {
-                if(seat != player.getSeat()) {
-                    if (player.getInitializeCard() == Card.SEER) {
-                        //预言家没有验过牌也没有验过人且所验玩家不是自己
-                        if (seerCheckDeck1 == null && seerCheckDeck2 == null && seerCheckPlayer == null && seat != player.getSeat()) {
-                            seerCheckPlayer = seat;
-                            //TODO 返回等待消息
-                            attemptNightAction();
-                        } else {
-                            //do nothing
-                        }
-                    } else if (player.getInitializeCard() == Card.ROBBER) {
-                        //强盗还没抢过人
-                        if (robberSnatchSeat == null) {
-                            robberSnatchSeat = seat;
-                            //TODO 返回等待消息
-                            attemptNightAction();
-                        } else {
-                            //do nothing
-                        }
-                    } else if (player.getInitializeCard() == Card.TROUBLEMAKER) {
+                if(player != null) {
+                    if(isPlayer(player)) {
                         if (seat != player.getSeat()) {
-                            if (troublemakerExchangeSeat1 == null &&
-                                    seat != player.getSeat()) {
-                                //不能换自己的牌
-                                troublemakerExchangeSeat1 = seat;
-                                //TODO 返回再选一张消息
-                            } else if (troublemakerExchangeSeat2 == null &&
-                                    seat != player.getSeat() &&
-                                    seat != troublemakerExchangeSeat1) {
-                                //不能换自己的牌且不能与第一张选中的牌相同
-                                troublemakerExchangeSeat2 = seat;
-                                //TODO 返回等待消息
-                                attemptNightAction();
-                            } else {
-                                //do nothing
+                            if (player.getInitializeCard() == Card.SEER) {
+                                //预言家没有验过牌也没有验过人且所验玩家不是自己
+                                if (seerCheckDeck1 == null && seerCheckDeck2 == null && seerCheckPlayer == null && seat != player.getSeat()) {
+                                    seerCheckPlayer = seat;
+                                    //TODO 返回等待消息
+                                    attemptNightAction();
+                                } else {
+                                    //do nothing
+                                }
+                            } else if (player.getInitializeCard() == Card.ROBBER) {
+                                //强盗还没抢过人
+                                if (robberSnatchSeat == null) {
+                                    robberSnatchSeat = seat;
+                                    //TODO 返回等待消息
+                                    attemptNightAction();
+                                } else {
+                                    //do nothing
+                                }
+                            } else if (player.getInitializeCard() == Card.TROUBLEMAKER) {
+                                if (seat != player.getSeat()) {
+                                    if (troublemakerExchangeSeat1 == null &&
+                                            seat != player.getSeat()) {
+                                        //不能换自己的牌
+                                        troublemakerExchangeSeat1 = seat;
+                                        //TODO 返回再选一张消息
+                                    } else if (troublemakerExchangeSeat2 == null &&
+                                            seat != player.getSeat() &&
+                                            seat != troublemakerExchangeSeat1) {
+                                        //不能换自己的牌且不能与第一张选中的牌相同
+                                        troublemakerExchangeSeat2 = seat;
+                                        //TODO 返回等待消息
+                                        attemptNightAction();
+                                    } else {
+                                        //do nothing
+                                    }
+                                } else {
+                                    //do nothing
+                                }
                             }
                         } else {
                             //do nothing
                         }
+                    }else{
+                        throw new RuntimeException(String.format("观看者%s不能触发行动。", userName));
                     }
                 }else{
-                    //do nothing
+                    //玩家不在房间内无法行动
+                    String message = String.format("玩家%s不在房间内无法行动。", userName);
+                    throw new RuntimeException(message);
                 }
             } else if (scene == Scene.VOTE) {
-                if (hunterVote) {
-                    if (player.getInitializeCard() == Card.HUNTER) {
-                        //猎人技能投票
-                        hunterVote(playerName, seat);
-                    } else {
-                        //do nothing
+                if(player != null) {
+                    if(isPlayer(player)) {
+                        if (hunterVote) {
+                            if (player.getInitializeCard() == Card.HUNTER) {
+                                //猎人技能投票
+                                hunterVote(userName, seat);
+                            } else {
+                                //do nothing
+                            }
+                        } else {
+                            //普通vote
+                            player.setVoteSeat(seat);
+                            if (canStatVote()) {
+                                finishGame();
+                            }
+                        }
+                    }else{
+                        throw new RuntimeException(String.format("观看者%s不能触发行动。", userName));
                     }
-                } else {
-                    //普通vote
-                    player.setVoteSeat(seat);
-                    if (canStatVote()) {
-                        finishGame();
-                    }
+                }else{
+                    //玩家不在房间内无法行动
+                    String message = String.format("玩家%s不在房间内无法投票。", userName);
+                    throw new RuntimeException(message);
                 }
             } else if(scene == Scene.PREPARE){
                 //准备状态点击座位，表示交换座位
-                //检查seat number的合法性， 从1开始到玩家数量上限
-                if(seat>=0 && seat<getSeatCount()){
-                    if(player != null){
-                        if(!seatPlayerMap.keySet().contains(seat)){
-                            //旧的座位移除
-                            int oldSeat = player.getSeat();
-                            seatPlayerMap.remove(oldSeat);
-                            //新的座位加入
-                            seatPlayerMap.put(seat, player);
+                Player seatedPlayer = getPlayerBySeat(seat);
+                if(player != null){
+                    if(isPlayer(player)){
+                        //如果请求换座位的是玩家
+                        if(player.isReady()){
+                            //该玩家已经准备了不能换座位,提醒他一下
+                            XskrMessage xskrMessage = new XskrMessage("已经准备不能换座", null, null);
+                            sendMessage(player, xskrMessage);
+                        }else{
+                            if(player == seatedPlayer){
+                                //玩家离开座位
+                                player.setSeat(null);
+                                //发送一个刷新房间信息的(换座)事件
+                                String message = String.format("%s离开座位%s", userName, seat);
+                                ClientAction clientAction = ClientAction.ROOM_CHANGED;
+                                Object data = this;
+                                XskrMessage xskrMessage = new XskrMessage(message, clientAction, data);
+                                //发消息给所有用户
+                                sendMessage(xskrMessage);
+                            }else if(seatedPlayer == null){
+                                //玩家换座位
+                                player.setSeat(seat);
+                                //发送一个刷新房间信息的(换座)事件
+                                String message = String.format("换座位到%s", seat);
+                                ClientAction clientAction = ClientAction.ROOM_CHANGED;
+                                Object data = this;
+                                XskrMessage xskrMessage = new XskrMessage(message, clientAction, data);
+                                sendMessage(xskrMessage);
+                            }else{
+                                //该座位已经有人了, 可以在客户端判断一下，减少通讯
+                                String message = String.format("座位%s已经有玩家%s.", seat, seatedPlayer.getName());
+                                logger.warn(message);
+                            }
+                        }
+                    }else if(isObserver(player)){
+                        //如果请求换座位的是观察者
+                        if(seatedPlayer == null){
+                            //观察者坐座位变为玩家
                             player.setSeat(seat);
-                            //发送一个刷新房间信息的(换座)事件
-                            XskrMessage xskrMessage = new XskrMessage(null, ClientAction.REFRESH_PLAYERS_INFO_ACTION, this);
+                            String message = String.format("选择%s号座位", seat);
+                            ClientAction clientAction = ClientAction.ROOM_CHANGED;
+                            Object data = this;
+                            XskrMessage xskrMessage = new XskrMessage(message, clientAction, data);
                             sendMessage(xskrMessage);
                         }else{
-                            // 这个座位已经有人了,所以什么都不会发生
+                            //该座位已经有人了, 可以在客户端判断一下，减少通讯
+                            String message = String.format("座位%s已经有玩家%s.", seat, seatedPlayer.getName());
+                            logger.warn(message);
                         }
                     }else{
-                        String message = String.format("玩家%s不在房间, 无法应用座位号。", playerName);
+                        String message = String.format("玩家%s即属于玩家又是观察者。", userName);
                         throw new RuntimeException(message);
                     }
                 }else{
-                    String message = String.format("试图为玩家%s分配不合理的座位号: %d", playerName, seat);
+                    String message = String.format("玩家%s未进入房间。", userName);
                     throw new RuntimeException(message);
                 }
             } else {
                 throw new RuntimeException("不支持的场景: " + scene);
             }
         } else {
-            throw new RuntimeException("座位序号" + seat + "不合理");
+            String message = String.format("座位序号%s不合理，应取值在%s到%s之间。", seat, 0, getSeatCount() - 1);
+            throw new RuntimeException(message);
         }
     }
 
@@ -997,18 +996,18 @@ public class Room {
     }
 
     private void sendMessage(Player player, XskrMessage message){
-        String roomWebSocketQueue = "/queue/" + id;
+        String roomWebSocketQueue = "/queue";
         if(simpMessagingTemplate != null){
             simpMessagingTemplate.convertAndSendToUser(player.getName(), roomWebSocketQueue, message);
         }else{
             System.out.println(String.format("sendMessage to %s: %s", player.getName(), JSON.toJSONString(message, true)));
         }
-
     }
 
     private void sendMessage(XskrMessage message){
         String roomWebSocketTopic = "/topic/" + id;
         if(simpMessagingTemplate != null) {
+            System.out.println("send topick: " + roomWebSocketTopic);
             simpMessagingTemplate.convertAndSend(roomWebSocketTopic, message);
         }else{
             System.out.println(String.format("sendMessage to All: %s", JSON.toJSONString(message, true)));
@@ -1023,47 +1022,40 @@ public class Room {
         return cards;
     }
 
-    public String getCurrentPlayerName() {
-        return currentPlayerName;
+    public void setCards(Card[] cards) {
+        if(scene == Scene.PREPARE) {
+            this.cards = cards;
+            XskrMessage xskrMessage = new XskrMessage(null, ClientAction.ROOM_CHANGED, this);
+            sendMessage(xskrMessage);
+        }
     }
 
-    public void setCurrentPlayerName(String currentPlayerName) {
-        this.currentPlayerName = currentPlayerName;
-        this.clientAction = getLastClientAction(currentPlayerName);
-    }
+
 
     private void keepKeyMessage(Player player, XskrMessage xskrMessage){
-        List<XskrMessage> messages = playerMessagesMap.get(player);
-        if(messages == null){
-            messages = new ArrayList();
-            playerMessagesMap.put(player, messages);
-        }
-        messages.add(xskrMessage);
-        if(xskrMessage.getAction() != null) {
-            playerClientActionMap.put(player, xskrMessage.getAction());
-        }
+        player.getKeyMessages().add(xskrMessage);
     }
 
-    public Map<Player, List<XskrMessage>> getPlayerMessagesMap() {
-        return playerMessagesMap;
-    }
-
-    public List<String> getKeyMessages(String playerName){
-        Player player = namePlayerMap.get(playerName);
-        List<XskrMessage> xskrMessages = getPlayerMessagesMap().get(player);
-        List<String> messages = new ArrayList();
-        if(xskrMessages != null){
-            for(XskrMessage xskrMessage:xskrMessages){
-                messages.add(xskrMessage.getMessage());
+    public List<String> getKeyMessages(String userName){
+        Player player = getPlayerByName(userName);
+        if(player != null) {
+            List<XskrMessage> xskrMessages = player.getKeyMessages();
+            List<String> messages = new ArrayList();
+            if (xskrMessages != null) {
+                for (XskrMessage xskrMessage : xskrMessages) {
+                    messages.add(xskrMessage.getMessage());
+                }
             }
+            return messages;
+        }else{
+            return null;
         }
-        return messages;
     }
 
-    public ClientAction getLastClientAction(String playerName){
-        Player player = namePlayerMap.get(playerName);
-        if(playerClientActionMap != null) {
-            return playerClientActionMap.get(player);
+    public ClientAction getLastClientAction(String userName){
+        Player player = getPlayerByName(userName);
+        if(player != null) {
+            return player.getLastAction();
         }else{
             return null;
         }
@@ -1096,5 +1088,9 @@ public class Room {
 
     public void setClientAction(ClientAction clientAction) {
         this.clientAction = clientAction;
+    }
+
+    public String getOwner() {
+        return owner;
     }
 }
