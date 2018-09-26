@@ -39,12 +39,12 @@ public class TestRoom {
         // 进入夜晚每个玩家行动
         Seat singleWolf = room.getSingleWolfSeat();
         if(singleWolf != null){
-            room.pickCard(singleWolf.getUserName(), 0);
+            room.pickDesktopCard(singleWolf.getUserName(), 0);
         }
         Seat seer = room.getSeatByInitializeCard(Card.SEER);
         if(seer != null){
-            room.pickCard(seer.getUserName(), 1);
-            room.pickCard(seer.getUserName(), 2);
+            room.pickDesktopCard(seer.getUserName(), 1);
+            room.pickDesktopCard(seer.getUserName(), 2);
         }
         Seat robber = room.getSeatByInitializeCard(Card.ROBBER);
         if(robber != null){
@@ -69,7 +69,7 @@ public class TestRoom {
         }
         Seat drunk = room.getSeatByInitializeCard(Card.DRUNK);
         if(drunk != null){
-            room.pickCard(drunk.getUserName(), 1);
+            room.pickDesktopCard(drunk.getUserName(), 1);
         }
 
         //每个玩家都行动完毕后，房间自动发动夜间流程并发消息给每个玩家

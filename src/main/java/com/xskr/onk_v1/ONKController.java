@@ -98,7 +98,7 @@ public class ONKController{
     public void pickCard(@PathVariable int roomID, @PathVariable int cardID){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.pickCard(userName, cardID);
+        room.pickDesktopCard(userName, cardID);
     }
 
     /**

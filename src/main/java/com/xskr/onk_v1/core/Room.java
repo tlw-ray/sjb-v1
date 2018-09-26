@@ -79,9 +79,7 @@ public class Room {
             clientAction = ClientAction.RECONNECT;
         }else{
             //新用户加入房间
-            playerSeat = new Seat(userName);
-//            player.setRoom(this);
-            seats.add(playerSeat);
+            observers.add(userName);
             message = String.format("%s加入了房间", userName);
             clientAction = ClientAction.ROOM_CHANGED;
         }
@@ -98,7 +96,9 @@ public class Room {
      */
     public void leave(String userName){
         logger.debug("leave(userName = {})", userName);
+        //从观看者中移除
         if(!observers.remove(userName)){
+            //从座位上移除该玩家
             Seat playerSeat = getSeatByUserName(userName);
             playerSeat.setUserName(null);
             String message = String.format("%s离开房间", playerSeat.getUserName());
@@ -743,21 +743,38 @@ public class Room {
         }
     }
 
-    public synchronized void pickCard(String userName, int card){
-        logger.debug("pickCard(userName={}, card={})", userName, card);
+    /**
+     * 房主点击某个卡，来调整房间的座位以及卡牌设定
+     * @param userName
+     * @param card
+     */
+    public void pickCard(String userName, Card card){
+        if(userName.equals(owner)){
+            if(scene == Scene.PREPARE){
+                //TODO 房主修改房间卡牌设定
+            }else{
+                throw new RuntimeException("只有准备阶段才能修改房间卡牌设定。");
+            }
+        }else{
+            throw new RuntimeException("只有房主才能调整房间卡牌设定。");
+        }
+    }
+
+    public synchronized void pickDesktopCard(String userName, int location){
+        logger.debug("pickDesktopCard(userName={}, card={})", userName, location);
         Seat playerSeat = getSeatByUserName(userName);
         //如果卡牌序号信息是合理的
-        if (card >= 0 && card < TABLE_DECK_THICKNESS) {
+        if (location >= 0 && location < TABLE_DECK_THICKNESS) {
             if(scene == Scene.ACTIVATE) {
                 if (playerSeat.getInitializeCard() == Card.SEER) {
                     if (seerCheckPlayerSeat == null) {
                         if (seerCheckDesktopCard1 == null) {
                             //预言家尚未验证第一张牌
-                            seerCheckDesktopCard1 = card;
+                            seerCheckDesktopCard1 = location;
                             //TODO 返回"请再选择另外一张"的消息
-                        } else if (seerCheckDesktopCard2 == null && card != seerCheckDesktopCard1) {
+                        } else if (seerCheckDesktopCard2 == null && location != seerCheckDesktopCard1) {
                             //预言家验证了第一张牌，但尚未验证第二张， 且此张非第一张
-                            seerCheckDesktopCard2 = card;
+                            seerCheckDesktopCard2 = location;
                             attemptNightAction();
                             //TODO 返回"请等待所有玩家行动结束，系统会给出下一步指示"的消息
                         } else {
@@ -770,19 +787,19 @@ public class Room {
                         (playerSeat.getInitializeCard() == Card.WEREWOLF_1 ||
                                 playerSeat.getInitializeCard() == Card.WEREWOLF_2)) {
                     if (singleWolfCheckDesktopCard == null) {
-                        singleWolfCheckDesktopCard = card;
-                        if (desktopCards.get(card) == Card.WEREWOLF_2
-                                || desktopCards.get(card) == Card.WEREWOLF_1) {
+                        singleWolfCheckDesktopCard = location;
+                        if (desktopCards.get(location) == Card.WEREWOLF_2
+                                || desktopCards.get(location) == Card.WEREWOLF_1) {
                             //TODO 返回"是狼牌可以再验一张的消息"
 
                         } else {
-                            singleWolfCheckDesktopCard = card;
+                            singleWolfCheckDesktopCard = location;
                             attemptNightAction();
                         }
                     }
                 } else if (playerSeat.getInitializeCard() == Card.DRUNK) {
                     if (drunkExchangeDesktopCard == null) {
-                        drunkExchangeDesktopCard = card;
+                        drunkExchangeDesktopCard = location;
                         //TODO 返回"请等待所有玩家行动结束，系统会给出下一步指示"的消息
                         attemptNightAction();
                     }
@@ -798,7 +815,7 @@ public class Room {
                 throw new RuntimeException("Unsupported scene: " + scene);
             }
         } else {
-            throw new RuntimeException("卡牌序号" + card + "不合理");
+            throw new RuntimeException("卡牌序号" + location + "不合理");
         }
     }
 
@@ -884,7 +901,7 @@ public class Room {
                 }
             } else if(scene == Scene.PREPARE){
                 //准备状态点击座位，表示交换座位
-                Seat seatedPlayer = getPlayerSeatByLocation(location);
+                Seat otherSeat = getPlayerSeatByLocation(location);
                 if(seat != null){
                     if(seat.getUserName() != null){
                         //如果请求换座位的是玩家
@@ -893,9 +910,11 @@ public class Room {
                             XskrMessage xskrMessage = new XskrMessage("已经准备不能换座", null, null);
                             sendMessage(seat, xskrMessage);
                         }else{
-                            if(seat == seatedPlayer){
+                            if(seat == otherSeat){
                                 //玩家离开座位
-                                seat.setLocation(null);
+//                                seat.setLocation(null);
+                                seat.setUserName(null);
+                                observers.add(userName);
                                 //发送一个刷新房间信息的(换座)事件
                                 String message = String.format("%s离开座位%s", userName, location);
                                 ClientAction clientAction = ClientAction.ROOM_CHANGED;
@@ -903,9 +922,12 @@ public class Room {
                                 XskrMessage xskrMessage = new XskrMessage(message, clientAction, data);
                                 //发消息给所有用户
                                 sendMessage(xskrMessage);
-                            }else if(seatedPlayer == null){
+                            }else if(otherSeat == null){
                                 //玩家换座位
-                                seat.setLocation(location);
+//                                seat.setLocation(location);
+                                String tempUserName = seat.getUserName();
+                                seat.setUserName(otherSeat.getUserName());
+                                otherSeat.setUserName(tempUserName);
                                 //发送一个刷新房间信息的(换座)事件
                                 String message = String.format("换座位到%s", location);
                                 ClientAction clientAction = ClientAction.ROOM_CHANGED;
@@ -914,15 +936,16 @@ public class Room {
                                 sendMessage(xskrMessage);
                             }else{
                                 //该座位已经有人了, 可以在客户端判断一下，减少通讯
-                                String message = String.format("座位%s已经有玩家%s.", location, seatedPlayer.getUserName());
+                                String message = String.format("座位%s已经有玩家%s.", location, otherSeat.getUserName());
                                 logger.warn(message);
                             }
                         }
                     }else if(observers.contains(userName)){
                         //如果请求换座位的是观察者
-                        if(seatedPlayer == null){
+                        if(otherSeat == null){
                             //观察者坐座位变为玩家
-                            seat.setLocation(location);
+                            seat.setUserName(userName);
+                            observers.remove(userName);
                             String message = String.format("选择%s号座位", location);
                             ClientAction clientAction = ClientAction.ROOM_CHANGED;
                             Object data = this;
@@ -930,7 +953,7 @@ public class Room {
                             sendMessage(xskrMessage);
                         }else{
                             //该座位已经有人了, 可以在客户端判断一下，减少通讯
-                            String message = String.format("座位%s已经有玩家%s.", location, seatedPlayer.getUserName());
+                            String message = String.format("座位%s已经有玩家%s.", location, otherSeat.getUserName());
                             logger.warn(message);
                         }
                     }else{
