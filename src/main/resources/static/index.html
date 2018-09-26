@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>创建或加入房间</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta userName="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <script src="/webjars/jquery/jquery.min.js"></script>
     <script src="/webjars/sockjs-client/sockjs.min.js"></script>
     <script src="/webjars/stomp-websocket/stomp.min.js"></script>
@@ -17,7 +17,7 @@
             var queueStomp = Stomp.over(queueSock)
             queueStomp.connect({}, function (frame) {
                 //记录当前客户端玩家身份
-                $('#player_hidden').val(frame['headers']['user-name'])
+                $('#player_hidden').val(frame['headers']['user-userName'])
                 queueStomp.subscribe(queueURL, function (message) {
                     var xskrMessage = JSON.parse(message.body)
                     //将收到消息的message显示
@@ -36,12 +36,12 @@
             //确定创建新房间
             $('#create_room_button').click(function () {
                 $.ajax({
-                    url: '/onk/room',
+                    url: '/onk/create',
                     type: 'POST',
                     Accept: "application/json",
                     contentType: "application/json",
                     success: function (roomID) {
-                        //更新创建的房间ID
+                        //更新创建的房间ID, 以便于后面用到房间参数时候可以从这里获取
                         $('#room_id_number').val(roomID)
                         //加入房间
                         joinRoom()
@@ -54,8 +54,6 @@
 
             //确定加入已有房间
             $('#apply_join_button').click(function () {
-                //进入指定ID的房间
-                var roomID = $('#room_id_number').val()
                 joinRoom()
             })
 
@@ -73,7 +71,7 @@
                     }).get()
                     var roomID = $('#room_id_number').val()
                     $.ajax({
-                        url: '/onk/' + roomID + '/cards',
+                        url: '/onk/cards/' + roomID,
                         type: 'POST',
                         data: JSON.stringify(selectedCards),
                         Accept: "application/json",
@@ -94,7 +92,7 @@
                 //清空消息栏
                 $('#messages_div').html('')
                 $.ajax({
-                    url: '/onk/' + $('#room_id_span').html() + '/ready/' + $('#ready_checkbox').prop('checked'),
+                    url: '/onk/ready/' + $('#room_id_span').html() + '/' + $('#ready_checkbox').prop('checked'),
                     Accept: 'application/json',
                     contentType: 'application/json',
                     success: function (ready) {
@@ -109,33 +107,24 @@
 
             $('#exit_button').click(function(){
                 var roomID = $('#room_id_number').val()
-                ajaxGet('/onk/' + roomID + '/leave')
+                ajaxGet('/onk/leave/' + roomID)
                 $('#create_join_div').show()
-                $('#game_div').hide()
+                $('#room_div').hide()
+            })
+
+            $('#deck_div > button').click(function(){
+                var url = '/onk/card/' + $('#room_id_number').val() + '/' + this.value
+                ajaxGet(url)
             })
 
             function joinRoom() {
                 var roomID = $('#room_id_number').val()
-                //刷新房间牌垛信息
-                for(var cardPosition = 0; cardPosition < 3; cardPosition++) {
-                    var id = 'deck_button_' + cardPosition
-                    var deckButton = $('<button/>', {
-                        'id': id,
-                        'value': cardPosition,
-                        'text': '牌' + cardPosition
-                    })
-                    deckButton.bind('click', {'cardPosition': cardPosition}, function(e){
-                        var url = '/onk/' + roomID + '/deck/' + e.data.cardPosition
-                        ajaxGet(url)
-                    })
-                    $('#deck_div').append(deckButton)
-                }
 
                 //加入房间
                 $('#room_id_span').html(roomID)
                 //进入房间，订阅该房间的消息
                 $.ajax({
-                    url: '/onk/' + roomID + '/join',
+                    url: '/onk/join/' + roomID,
                     Accept: 'application/json',
                     contentType: 'application/json',
                     success: function () {
@@ -166,7 +155,7 @@
                                             outcomeMessage += ' 失败 '
                                         }
                                         outcomeMessage = outcomeMessage + '(' + getCardName(data.initializeCard) + '->' + getCardName(data.finalCard) + ')'
-                                        $('#player_outcome_span_' + data.seat).html(outcomeMessage)
+                                        $('#player_outcome_span_' + data.location).html(outcomeMessage)
                                     }
                                 } else if (clientAction == 'VOTE_ACTION') {
                                     enablePlayersWithoutSelf()
@@ -202,7 +191,7 @@
                 refreshPlayerList(room)
                 for(var i in room.players){
                     var player = players[i]
-                    if(player['name'] == playerName){
+                    if(player['userName'] == playerName){
                         var keyMessages = player['keyMessage']
                         //显示本局该玩家所有关键游戏信息
                         var lastXskrMessage
@@ -275,6 +264,7 @@
             //ready可用
             $('#ready_checkbox').prop('disabled', false)
 
+            //TODO 这里是重新构建，但如果座位数不变的话刷新就可以了，只有座位数变化了才需要重新构建
             //构建座位区域
             $('#seat_div').html('')
             //建立所有的座位区域
@@ -284,13 +274,13 @@
                     'style': 'width:90%; height:60px; text-align: left; background-color: gray; border-style: groove',
                     'id': 'seat_div_' + i
                 })
-                seatDiv.bind('click', {'seat': i}, function(e){
+                seatDiv.bind('click', {'location': i}, function(e){
                     //点击空白座位
                     e.cancelBubble = true
                     e.stopPropagation()     //阻止事件向上传递
                     e.preventDefault()      //放弃默认的行为，例如双击选中
                     var roomID = $('#room_id_span').html()
-                    var url = '/onk/' + roomID + '/seat/' + e.data.seat
+                    var url = '/onk/location/' + roomID + '/' + e.data.location
                     ajaxGet(url)
                 })
                 $('#seat_div').append(seatDiv)
@@ -299,12 +289,12 @@
             var players = room.players
             for (var idx in players) {
                 var player = players[idx]
-                var seat = player['seat']
-                if(seat != null && seat >= 0 && seat < room.seatCount){
+                var location = player['location']
+                if(location != null && location >= 0 && location < room.seatCount){
                     //当房主改变房间设定时，可能会出现玩家座位超出可用座位数的情况, 这里保障座位是有效的
-                    var playerName = player['name']
+                    var playerName = player['userName']
                     var ready = player['ready']
-                    var playerInfo = seat + '. ' + playerName;
+                    var playerInfo = location + '. ' + playerName;
                     var playerButtonID = 'player_button_' + idx;
                     if (playerName == $('#player_hidden').val()) {
                         //标记当前玩家
@@ -328,12 +318,12 @@
 
                     var outcome = $('<span/>', {
                         'class': 'outcome',
-                        'id': 'player_outcome_span_' + seat
+                        'id': 'player_outcome_span_' + location
                     })
 
-                    $('#seat_div_' + seat).append(playerButton)
-                    $('#seat_div_' + seat).append(outcome)
-                    $('#seat_div_' + seat).attr('playerName', playerName)
+                    $('#seat_div_' + location).append(playerButton)
+                    $('#seat_div_' + location).append(outcome)
+                    $('#seat_div_' + location).attr('playerName', playerName)
                 }
             }
         }
@@ -514,7 +504,9 @@ room_div
         </div>
         <div id="messages_div" class="col-sm-5 col-lg-5 col-md-5 col-xs-5"></div>
         <div id="deck_div" class="col-sm-2 col-lg-2 col-md-2 col-xs-2">
-
+            <button id="deck_button_0" value="0">牌1</button>
+            <button id="deck_button_1" value="1">牌2</button>
+            <button id="deck_button_2" value="2">牌3</button>
         </div>
     </div>
 </div>

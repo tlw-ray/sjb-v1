@@ -3,11 +3,7 @@ package com.xskr.onk_v1;
 import com.xskr.common.WebUtil;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Room;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.autoconfigure.metrics.MetricsProperties;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -20,14 +16,16 @@ public class ONKController{
 
     private static int RoomID_Generator = 0;
 
-    private Logger logger = LoggerFactory.getLogger(getClass());
-
     private Map<Integer, Room> idRoomMap = Collections.synchronizedMap(new TreeMap());
 
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
 
-    @RequestMapping("/cards")
+    /**
+     * 获得当前一夜狼游戏的所有可用卡牌
+     * @return
+     */
+    @RequestMapping(path = "/cards", produces = MediaType.APPLICATION_JSON_VALUE)
     public Card[] getCards(){
         return Card.values();
     }
@@ -36,7 +34,7 @@ public class ONKController{
      * 创建房间，需要传入该房间支持的角色列表
      * @return 房间静态信息, ID, 现有玩家清单, 座位数量等, 角色列表
      */
-    @RequestMapping(path = "/room", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(path = "/create", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public int createRoom(){
         int roomID = RoomID_Generator++;
         Room room = new Room(roomID, WebUtil.getCurrentUserName());
@@ -50,68 +48,22 @@ public class ONKController{
      * @param roomID
      * @return
      */
-    @RequestMapping("/{roomID}/join")
-    public void join(@PathVariable int roomID){
+    @RequestMapping(path = "/join/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void pickJoin(@PathVariable int roomID){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.join(userName);
     }
 
-    @RequestMapping("/{roomID}/exit")
-    public void exit(@PathVariable int roomID){
-        String userName = WebUtil.getCurrentUserName();
-        Room room = idRoomMap.get(roomID);
-        room.leave(userName);
-    }
-
-    //TODO 注意: 所有返回Room的方法均导致玩家手牌信息的泄露
-    @RequestMapping(path = "/room/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Room getRoom(@PathVariable int roomID){
-        Room room = idRoomMap.get(roomID);
-        return room;
-    }
-
-//    /**
-//     * 列举现有的房间
-//     * @return
-//     */
-//    @RequestMapping(path="/rooms")
-//    public Set<Integer> listRoom(){
-//        return idRoomMap.keySet();
-//    }
-
-//    /**
-//     * 列举房间内现有的玩家信息
-//     * @param roomID
-//     * @return
-//     */
-//    @RequestMapping(path="/{roomID}/players")
-//    public Set<Player> listPlayer(@PathVariable int roomID){
-//        Room room = idRoomMap.get(roomID);
-//        return room.getPlayers();
-//    }
-
     /**
      * 玩家离开
      */
-    @RequestMapping("/{roomID}/leave")
-    public void leave(@PathVariable int roomID){
+    @RequestMapping(path = "/leave/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void pickLeave(@PathVariable int roomID){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.leave(userName);
     }
-
-//    /**
-//     * 玩家选择座位
-//     * @param roomID
-//     * @param seat
-//     */
-//    @RequestMapping("/{roomID}/sit/{seat}")
-//    public void sit(@PathVariable int roomID, @PathVariable int seat){
-//        String userName = getCurrentUserName();
-//        Room room = idRoomMap.get(roomID);
-//        room.sit(userName, seat);
-//    }
 
     /**
      * 玩家设定准备, 如果所有玩家均已准备则触发游戏开始
@@ -119,14 +71,19 @@ public class ONKController{
      * @param ready 是否准备
      * @return 服务端返回的该玩家准备状态
      */
-    @RequestMapping("/{roomID}/ready/{ready}")
-    public boolean ready(@PathVariable int roomID, @PathVariable boolean ready){
+    @RequestMapping(path = "/ready/{roomID}/{ready}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public boolean pickReady(@PathVariable int roomID, @PathVariable boolean ready){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         return room.setReady(userName, ready);
     }
 
-    @RequestMapping("/{roomID}/keyMessages")
+    /**
+     * 获得某个座位已有的关键信息
+     * @param roomID
+     * @return
+     */
+    @RequestMapping(path = "/getKeyMessages/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<String> getKeyMessages(@PathVariable int roomID){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
@@ -137,21 +94,31 @@ public class ONKController{
      * 玩家点击了桌上的一张牌
      * @return
      */
-    @RequestMapping("/{roomID}/deck/{cardID}")
+    @RequestMapping(path = "/card/{roomID}/{cardID}", produces = MediaType.APPLICATION_JSON_VALUE)
     public void pickCard(@PathVariable int roomID, @PathVariable int cardID){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.pickCard(userName, cardID);
     }
 
-    @RequestMapping("/{roomID}/seat/{seat}")
+    /**
+     * 玩家点了某个座位
+     * @param roomID
+     * @param seat
+     */
+    @RequestMapping(path = "/seat/{roomID}/{seat}", produces = MediaType.APPLICATION_JSON_VALUE)
     public void pickSeat(@PathVariable int roomID, @PathVariable int seat){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         room.pickSeat(userName, seat);
     }
 
-    @RequestMapping(path = "/{roomID}/cards", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    /**
+     * 获得当前房间设定的牌
+     * @param roomID
+     * @param cards
+     */
+    @RequestMapping(path = "/cards/{roomID}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
     public void setCards(@PathVariable int roomID,@RequestBody Card[] cards){
         String userName = WebUtil.getCurrentUserName();
         System.out.println(userName + ": set cards ...................." + Arrays.toString(cards));

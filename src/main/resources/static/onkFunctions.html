@@ -298,11 +298,11 @@
                     type: 'GET',
                     Accept: 'application/json',
                     contentType: 'application/json',
-                    success: function(name){
-                        $('#who_label').text(name)
+                    success: function(userName){
+                        $('#who_label').text(userName)
                         var stompClient = null;
                         var endpointURL = "/onk/endpoint"
-                        var privateTopicURL = "/topic/" + name
+                        var privateTopicURL = "/topic/" + userName
                         var socket = new SockJS(endpointURL)
                         stompClient = Stomp.over(socket)
                         stompClient.connect({}, function (frame) {

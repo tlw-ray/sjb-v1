@@ -11,9 +11,9 @@ public class VoteStat {
     //最大得票数
     int maxVoteCount;
     //获得最大得票数的玩家集合
-    Set<Player> votedPlayer;
+    Set<Seat> votedPlayer;
 
-    public VoteStat(boolean hasWolfInPlayers, boolean hasHunterInPlayers, int maxVoteCount, Set<Player> votedPlayer) {
+    public VoteStat(boolean hasWolfInPlayers, boolean hasHunterInPlayers, int maxVoteCount, Set<Seat> votedPlayer) {
         this.hasWolfInPlayers = hasWolfInPlayers;
         this.hasHunterInPlayers = hasHunterInPlayers;
         this.maxVoteCount = maxVoteCount;
@@ -29,7 +29,7 @@ public class VoteStat {
     }
 
     public boolean voted(Card card){
-        for(Player player:votedPlayer){
+        for(Seat player:votedPlayer){
             if(player.getCard() == card){
                 return true;
             }
@@ -45,7 +45,7 @@ public class VoteStat {
         return maxVoteCount;
     }
 
-    public Set<Player> getVotedPlayer() {
+    public Set<Seat> getVotedPlayer() {
         return votedPlayer;
     }
 }
