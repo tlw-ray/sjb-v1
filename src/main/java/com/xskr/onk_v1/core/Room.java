@@ -75,8 +75,9 @@ public class Room {
         ClientAction clientAction;
         if(playerSeat != null){
             //玩家已经在该房间, 玩家断线重连
-            message = String.format("%s断线重连回到房间", userName);
+            message = String.format("%s断线重连回到游戏", userName);
             clientAction = ClientAction.RECONNECT;
+
         }else{
             //新用户加入房间
             observers.add(userName);
@@ -85,8 +86,8 @@ public class Room {
         }
         //TODO 需要考虑房间的最大observer容量吗？
         //无论是断线重连还是新用户进入，都返回给他私人消息告知房间内的情况
-        XskrMessage xskrMessage = new XskrMessage(message, clientAction, this);
-        sendMessage(playerSeat, xskrMessage);
+        XskrMessage roomChangedMessage = new XskrMessage(message, clientAction, this);
+        sendMessage(userName, roomChangedMessage);
     }
 
     /**
@@ -102,8 +103,8 @@ public class Room {
             Seat playerSeat = getSeatByUserName(userName);
             playerSeat.setUserName(null);
             String message = String.format("%s离开房间", playerSeat.getUserName());
-            XskrMessage xskrMessage = new XskrMessage(message, ClientAction.ROOM_CHANGED, this);
-            sendMessage(xskrMessage);
+            XskrMessage roomChangedMessage = new XskrMessage(message, ClientAction.ROOM_CHANGED, this);
+            sendMessage(roomChangedMessage);
         }
     }
 
@@ -306,10 +307,10 @@ public class Room {
         }
         //向玩家发送身份和操作提示信息
         for(Map.Entry<Seat, XskrMessage> entry:playerXskrMessageMap.entrySet()){
-            Seat player = entry.getKey();
+            Seat seat = entry.getKey();
             XskrMessage xskrMessage1 = entry.getValue();
-            sendMessage(player, xskrMessage1);
-            keepKeyMessage(player, xskrMessage1);
+            sendMessage(seat.getUserName(), xskrMessage1);
+            keepKeyMessage(seat, xskrMessage1);
         }
         if(directVote){
             //没有任何玩家需要行动，直接进入投票阶段
@@ -432,15 +433,15 @@ public class Room {
             if(singleWolfSeat != null){
                 //场面上是一头孤狼
                 XskrMessage message = new XskrMessage(String.format("看到桌面牌垛中第%s张牌是: %s", singleWolfCheckDesktopCard, getDisplayName(desktopCards.get(singleWolfCheckDesktopCard))), null, null);
-                sendMessage(singleWolfSeat, message);
+                sendMessage(singleWolfSeat.getUserName(), message);
                 keepKeyMessage(singleWolfSeat, message);
             }else if(wolf1Seat != null && wolf2Seat != null){
                 //有两个狼玩家
                 String messageTemplate = "看到狼人伙伴%s号玩家'%s'，同时他也看到了你。";
                 XskrMessage wolf1Message = new XskrMessage(String.format(messageTemplate, wolf2Seat.getLocation(), wolf2Seat.getUserName()), null, null);
                 XskrMessage wolf2Message = new XskrMessage(String.format(messageTemplate, wolf1Seat.getLocation(), wolf1Seat.getUserName()), null, null);
-                sendMessage(wolf1Seat, wolf1Message);
-                sendMessage(wolf2Seat, wolf2Message);
+                sendMessage(wolf1Seat.getUserName(), wolf1Message);
+                sendMessage(wolf2Seat.getUserName(), wolf2Message);
                 keepKeyMessage(wolf1Seat, wolf1Message);
                 keepKeyMessage(wolf2Seat, wolf2Message);
             }else if(wolf1Seat == null && wolf2Seat == null){
@@ -463,7 +464,7 @@ public class Room {
                     message = "场面上没有狼。";
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
-                sendMessage(minionSeat, xskrMessage);
+                sendMessage(minionSeat.getUserName(), xskrMessage);
                 keepKeyMessage(minionSeat, xskrMessage);
             }
 
@@ -471,19 +472,19 @@ public class Room {
             if(meson1Seat == null && meson2Seat != null){
                 //单守夜
                 XskrMessage xskrMessage = new XskrMessage("单人守夜没有同伴。", null, null);
-                sendMessage(meson2Seat, xskrMessage);
+                sendMessage(meson2Seat.getUserName(), xskrMessage);
                 keepKeyMessage(meson2Seat, xskrMessage);
             }else if(meson1Seat != null && meson2Seat == null){
                 XskrMessage xskrMessage = new XskrMessage("单人守夜没有同伴。", null, null);
-                sendMessage(meson1Seat, xskrMessage);
+                sendMessage(meson1Seat.getUserName(), xskrMessage);
                 keepKeyMessage(meson1Seat, xskrMessage);
             }else if(meson1Seat != null && meson2Seat != null){
                 //双守夜
                 String messageTemplate = "看到另一位守夜人，%s号玩家'%s'。";
                 XskrMessage meson1Message = new XskrMessage(String.format(messageTemplate, meson2Seat.getLocation(), meson2Seat.getUserName()), null, null);
                 XskrMessage meson2Message = new XskrMessage(String.format(messageTemplate, meson1Seat.getLocation(), meson1Seat.getUserName()), null, null);
-                sendMessage(meson1Seat, meson1Message);
-                sendMessage(meson2Seat, meson2Message);
+                sendMessage(meson1Seat.getUserName(), meson1Message);
+                sendMessage(meson2Seat.getUserName(), meson2Message);
                 keepKeyMessage(meson1Seat, meson1Message);
                 keepKeyMessage(meson2Seat, meson2Message);
             }else{
@@ -504,7 +505,7 @@ public class Room {
                     message = String.format("翻开桌上第%s和%s张卡牌，看到了%s和%s", seerCheckDesktopCard1, seerCheckDesktopCard2, card1, card2);
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
-                sendMessage(seerSeat, xskrMessage);
+                sendMessage(seerSeat.getUserName(), xskrMessage);
                 keepKeyMessage(seerSeat, xskrMessage);
             }
 
@@ -516,7 +517,7 @@ public class Room {
                 String message = String.format("交换了%s号玩家'%s'的身份牌%s。",
                         player.getLocation(), player.getUserName(), swapCard);
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
-                sendMessage(robberSeat, xskrMessage);
+                sendMessage(robberSeat.getUserName(), xskrMessage);
                 keepKeyMessage(robberSeat, xskrMessage);
             }
             if(troublemakerSeat != null){
@@ -528,7 +529,7 @@ public class Room {
                 String message = String.format("交换了%s号玩家'%s'和%s号玩家'%s'的身份牌。",
                         player1.getLocation(), player1.getUserName(), player2.getLocation(), player2.getUserName());
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
-                sendMessage(troublemakerSeat, xskrMessage);
+                sendMessage(troublemakerSeat.getUserName(), xskrMessage);
                 keepKeyMessage(troublemakerSeat, xskrMessage);
             }
             if(drunkSeat != null){
@@ -537,7 +538,7 @@ public class Room {
                 drunkSeat.setCard(swapCard);
                 String message = String.format("交换了牌垛里的第%s张牌。", drunkExchangeDesktopCard);
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
-                sendMessage(drunkSeat, xskrMessage);
+                sendMessage(drunkSeat.getUserName(), xskrMessage);
                 keepKeyMessage(drunkSeat, xskrMessage);
             }
             if(insomniacSeat != null){
@@ -548,7 +549,7 @@ public class Room {
                     message = String.format("牌被换为%s。", getDisplayName(insomniacSeat.getCard()));
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
-                sendMessage(insomniacSeat, xskrMessage);
+                sendMessage(insomniacSeat.getUserName(), xskrMessage);
                 keepKeyMessage(insomniacSeat, xskrMessage);
             }
             XskrMessage xskrMessage = new XskrMessage("进行三轮讨论后请投票。", ClientAction.VOTE_ACTION, null);
@@ -666,7 +667,7 @@ public class Room {
                 hunterVote = true;
                 //TODO 数据部分需要所有玩家信息？
                 XskrMessage hunterMessage = new XskrMessage("请投票", ClientAction.HUNTER_VOTE_ACTION, seats);
-                sendMessage(hunter, hunterMessage);
+                sendMessage(hunter.getUserName(), hunterMessage);
                 keepKeyMessage(hunter, new XskrMessage(report.toString(), ClientAction.HUNTER_VOTE_ACTION, seats));
                 return ;
             }else if(voteStat.voted(Card.WEREWOLF_1) || voteStat.voted(Card.WEREWOLF_2)){
@@ -757,6 +758,23 @@ public class Room {
             }
         }else{
             throw new RuntimeException("只有房主才能调整房间卡牌设定。");
+        }
+    }
+
+    private void updateSeats(){
+        if(seats.size() < getSeatCount()){
+            //增加座位
+            for(int i=0;i<getSeatCount() - seats.size();i++){
+                Seat seat = new Seat(null);
+                seats.add(seat);
+            }
+        }else if(seats.size() < getSeatCount()){
+            //减少座位
+            for(int i=0;i<seats.size() - getSeatCount(); i++){
+                
+            }
+        }else{
+            //不需要改变
         }
     }
 
@@ -901,70 +919,66 @@ public class Room {
                 }
             } else if(scene == Scene.PREPARE){
                 //准备状态点击座位，表示交换座位
-                Seat otherSeat = getPlayerSeatByLocation(location);
-                if(seat != null){
-                    if(seat.getUserName() != null){
-                        //如果请求换座位的是玩家
-                        if(seat.isReady()){
-                            //该玩家已经准备了不能换座位,提醒他一下
-                            XskrMessage xskrMessage = new XskrMessage("已经准备不能换座", null, null);
-                            sendMessage(seat, xskrMessage);
-                        }else{
-                            if(seat == otherSeat){
-                                //玩家离开座位
-//                                seat.setLocation(null);
-                                seat.setUserName(null);
-                                observers.add(userName);
-                                //发送一个刷新房间信息的(换座)事件
-                                String message = String.format("%s离开座位%s", userName, location);
-                                ClientAction clientAction = ClientAction.ROOM_CHANGED;
-                                Object data = this;
-                                XskrMessage xskrMessage = new XskrMessage(message, clientAction, data);
-                                //发消息给所有用户
-                                sendMessage(xskrMessage);
-                            }else if(otherSeat == null){
-                                //玩家换座位
-//                                seat.setLocation(location);
-                                String tempUserName = seat.getUserName();
-                                seat.setUserName(otherSeat.getUserName());
-                                otherSeat.setUserName(tempUserName);
-                                //发送一个刷新房间信息的(换座)事件
-                                String message = String.format("换座位到%s", location);
-                                ClientAction clientAction = ClientAction.ROOM_CHANGED;
-                                Object data = this;
-                                XskrMessage xskrMessage = new XskrMessage(message, clientAction, data);
-                                sendMessage(xskrMessage);
-                            }else{
-                                //该座位已经有人了, 可以在客户端判断一下，减少通讯
-                                String message = String.format("座位%s已经有玩家%s.", location, otherSeat.getUserName());
-                                logger.warn(message);
-                            }
-                        }
-                    }else if(observers.contains(userName)){
-                        //如果请求换座位的是观察者
-                        if(otherSeat == null){
-                            //观察者坐座位变为玩家
-                            seat.setUserName(userName);
-                            observers.remove(userName);
-                            String message = String.format("选择%s号座位", location);
+                Seat targetSeat = getPlayerSeatByLocation(location);
+                if(isPlayer(userName)){
+                    //如果是玩家，存在离开座位、换到空位，两种情况
+                    //如果已经准备了就不能再换位子了
+                    if(seat.isReady()){
+                        //如果该玩家已经准备了不能换座位,提醒他一下
+                        XskrMessage xskrMessage = new XskrMessage("已经准备不能换座", null, null);
+                        sendMessage(seat.getUserName(), xskrMessage);
+                    }else{
+                        if(targetSeat.getUserName() == null){
+                            //换到空座位
+                            String tempUserName = seat.getUserName();
+                            seat.setUserName(targetSeat.getUserName());
+                            targetSeat.setUserName(tempUserName);
+                            //发送一个刷新房间信息的(换座)事件
+                            String message = String.format("换座位到%s", location);
                             ClientAction clientAction = ClientAction.ROOM_CHANGED;
                             Object data = this;
-                            XskrMessage xskrMessage = new XskrMessage(message, clientAction, data);
-                            sendMessage(xskrMessage);
+                            XskrMessage roomChangedMessage = new XskrMessage(message, clientAction, data);
+                            sendMessage(roomChangedMessage);
+                        }else if(seat == targetSeat){
+                            //玩家离开座位
+                            seat.setUserName(null);
+                            observers.add(userName);
+                            //发送一个刷新房间信息的(换座)事件
+                            String message = String.format("%s离开座位%s", userName, location);
+                            ClientAction clientAction = ClientAction.ROOM_CHANGED;
+                            Object data = this;
+                            XskrMessage roomChangedMessage = new XskrMessage(message, clientAction, data);
+                            //发消息给所有用户
+                            sendMessage(roomChangedMessage);
                         }else{
                             //该座位已经有人了, 可以在客户端判断一下，减少通讯
-                            String message = String.format("座位%s已经有玩家%s.", location, otherSeat.getUserName());
+                            String message = String.format("座位%s已经有玩家%s.", location, targetSeat.getUserName());
                             logger.warn(message);
                         }
+                    }
+                }else if(isObserver(userName)){
+                    System.out.println("------------------------------");
+                    System.out.println(JSON.toJSONString(this));
+                    //如果请求换座位的是观察者
+                    if(targetSeat.getUserName() == null){
+                        //如果请求的座位没有人坐，则观察者坐座位变为玩家
+                        seat.setUserName(userName);
+                        observers.remove(userName);
+                        String message = String.format("选择%s号座位", location);
+                        ClientAction clientAction = ClientAction.ROOM_CHANGED;
+                        Object data = this;
+                        XskrMessage roomChangedMessage = new XskrMessage(message, clientAction, data);
+                        sendMessage(roomChangedMessage);
                     }else{
-                        String message = String.format("玩家%s即属于玩家又是观察者。", userName);
-                        throw new RuntimeException(message);
+                        //该座位已经有人了, 可以在客户端判断一下，减少通讯
+                        String message = String.format("座位%s已经有玩家%s.", location, targetSeat.getUserName());
+                        logger.warn(message);
                     }
                 }else{
-                    String message = String.format("玩家%s未进入房间。", userName);
+                    String message = String.format("用户%s既不属于观看者也不属于玩家。", userName);
                     throw new RuntimeException(message);
                 }
-            } else {
+            }else {
                 throw new RuntimeException("不支持的场景: " + scene);
             }
         } else {
@@ -973,16 +987,29 @@ public class Room {
         }
     }
 
+    private boolean isPlayer(String userName){
+        for(Seat seat:seats){
+            if(seat.getUserName()!= null && seat.getUserName().equals(userName)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isObserver(String userName){
+        return observers.contains(userName);
+    }
+
     public void setSimpMessagingTemplate(SimpMessagingTemplate simpMessagingTemplate) {
         this.simpMessagingTemplate = simpMessagingTemplate;
     }
 
-    private void sendMessage(Seat player, XskrMessage message){
+    private void sendMessage(String userName, XskrMessage message){
         String roomWebSocketQueue = "/queue";
         if(simpMessagingTemplate != null){
-            simpMessagingTemplate.convertAndSendToUser(player.getUserName(), roomWebSocketQueue, message);
+            simpMessagingTemplate.convertAndSendToUser(userName, roomWebSocketQueue, message);
         }else{
-            System.out.println(String.format("sendMessage to %s: %s", player.getUserName(), JSON.toJSONString(message, true)));
+            System.out.println(String.format("sendMessage to %s: %s", userName, JSON.toJSONString(message, true)));
         }
     }
 
@@ -1007,8 +1034,8 @@ public class Room {
     public void setCards(Card[] cards) {
         if(scene == Scene.PREPARE) {
             this.cards = cards;
-            XskrMessage xskrMessage = new XskrMessage(null, ClientAction.ROOM_CHANGED, this);
-            sendMessage(xskrMessage);
+            XskrMessage roomChangedMessage = new XskrMessage(null, ClientAction.ROOM_CHANGED, this);
+            sendMessage(roomChangedMessage);
         }
     }
 
@@ -1068,5 +1095,9 @@ public class Room {
 
     public Set<Seat> getSeats() {
         return seats;
+    }
+
+    public Set<String> getObservers() {
+        return observers;
     }
 }

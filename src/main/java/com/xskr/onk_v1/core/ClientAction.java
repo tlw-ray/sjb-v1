@@ -12,5 +12,7 @@ public enum ClientAction {
 
     RECONNECT,                      //断线重连
 
+    LEAVE_ROOM,                     //此玩家离开房间事件
+
     GAME_FINISH                     //一局游戏结束，解除所有玩家的准备状态
 }

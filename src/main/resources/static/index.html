@@ -183,6 +183,33 @@
                 //刷新房间信息
                 var room = xskrMessage.data
                 refreshPlayerList(room)
+                //如果当前玩家未在座位上也没在观看者中说明该玩家已经离开，那么切换到进入房间的页面
+                var isPlaying = false
+                //检查当前玩家是否在玩家列表中
+                for(var i in room.players){
+                    var player = room.players[i]
+                    if(player.name == $('#player_hidden').val()){
+                        isPlaying = true
+                        break;
+                    }
+                }
+                var isObserving = false
+                if(!isPlaying){
+                    //检查当前玩家是否在observer列表中
+                    for(var i in room.observers){
+                        var observer = room.observers[i]
+                        if(observer == $('#player_hidden').val()){
+                            isObserving = true;
+                            break;
+                        }
+                    }
+                }
+                var inRoom = isPlaying || isObserving
+                if(!inRoom){
+                    //实现离开房间的逻辑
+                    $('#create_join_div').show()
+                    $('#room_div').hide()
+                }
             }else if(clientAction == 'RECONNECT'){
                 //断线重连
                 //除了刷新房间信息，还需要输出该玩家的关键消息
@@ -280,7 +307,7 @@
                     e.stopPropagation()     //阻止事件向上传递
                     e.preventDefault()      //放弃默认的行为，例如双击选中
                     var roomID = $('#room_id_span').html()
-                    var url = '/onk/location/' + roomID + '/' + e.data.location
+                    var url = '/onk/seat/' + roomID + '/' + e.data.location
                     ajaxGet(url)
                 })
                 $('#seat_div').append(seatDiv)
