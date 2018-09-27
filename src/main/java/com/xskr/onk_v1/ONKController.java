@@ -26,7 +26,7 @@ public class ONKController{
      * @return
      */
     @RequestMapping(path = "/cards", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Card[] getCards(){
+    public Card[] getAllCards(){
         return Card.values();
     }
 
@@ -119,13 +119,9 @@ public class ONKController{
      * @param cards
      */
     @RequestMapping(path = "/cards/{roomID}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public void setCards(@PathVariable int roomID,@RequestBody Card[] cards){
+    public void setUsedCards(@PathVariable int roomID, @RequestBody Card[] cards){
         String userName = WebUtil.getCurrentUserName();
-        System.out.println(userName + ": set cards ...................." + Arrays.toString(cards));
-        System.out.println(roomID);
         Room room = idRoomMap.get(roomID);
-        System.out.println(room);
-        System.out.println(room.getOwner());
         if(userName.equals(room.getOwner())){
             room.setCards(cards);
         }

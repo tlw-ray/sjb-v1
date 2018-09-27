@@ -13,9 +13,7 @@ import java.util.List;
  * 其余座位也是无效座位
  * 因为桌游不同于以往游戏，可能要有人会临时退出或加入，实际上桌游的进展是以玩家座位为不变的基础进行的
  */
-public class Seat implements Comparable<Seat>{
-    //座位的位置
-	private Integer location;
+public class Seat{
 	//座位上的玩家如果为null说明该座位没有人坐
 	private String userName;
 	//该座位的初始卡牌
@@ -30,12 +28,6 @@ public class Seat implements Comparable<Seat>{
 	private int votedCount;
 	//该玩家的关键信息，供断线重连时提供
 	private List<XskrMessage> keyMessages = new ArrayList();
-//	//该玩家当前所在房间
-//	private Room room;
-	public Seat(String userName) {
-		super();
-		this.userName = userName.trim();
-	}
 
 	//一局游戏结束重置玩家状态
 	public void reset(){
@@ -64,14 +56,6 @@ public class Seat implements Comparable<Seat>{
 
 	void setReady(boolean ready) {
 		this.ready = ready;
-	}
-
-	public Integer getLocation() {
-		return location;
-	}
-
-	public void setLocation(Integer location) {
-		this.location = location;
 	}
 
 	public Integer getVoteSeat() {
@@ -130,28 +114,27 @@ public class Seat implements Comparable<Seat>{
 //	public void setRoom(Room room) {
 //		this.room = room;
 //	}
-
-	@Override
-	public int compareTo(Seat o) {
-		if(o == null){
-			return 1;
-		}else{
-		    if(getLocation() != null && o.getLocation() != null) {
-                //如果都有座位号就按照座位号排序，作为player
-                return Integer.compare(getLocation(), o.getLocation());
-            }else{
-		        //否则按照姓名排序，作为observer
-		        return getUserName().compareTo(o.getUserName());
-            }
-		}
-	}
+//
+//	@Override
+//	public int compareTo(Seat o) {
+//		if(o == null){
+//			return 1;
+//		}else{
+//		    if(getLocation() != null && o.getLocation() != null) {
+//                //如果都有座位号就按照座位号排序，作为player
+//                return Integer.compare(getLocation(), o.getLocation());
+//            }else{
+//		        //否则按照姓名排序，作为observer
+//		        return getUserName().compareTo(o.getUserName());
+//            }
+//		}
+//	}
 
     @Override
     public String toString() {
         return "Seat{" +
                 "userName='" + userName + '\'' +
                 ", card=" + card +
-                ", location=" + location +
                 ", voteSeat=" + voteSeat +
                 '}';
     }

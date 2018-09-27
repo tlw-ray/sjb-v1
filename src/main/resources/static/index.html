@@ -10,6 +10,8 @@
     <link href="/webjars/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <script>
         var endpointURL = '/onk/endpoint'
+        var topicSock;
+        var topicStomp;
         $(document).ready(function () {
             //订阅个人频道
             var queueURL = '/user/queue'
@@ -24,14 +26,11 @@
                     if (xskrMessage.message != null) {
                         $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
                     }
-                    disableAll()
+                    // disableAll()
                     //处理个人频道推送的信息
                     processUserQueueAction(xskrMessage)
                 })
             })
-
-            $('#create_join_div').show()
-            $('#room_div').hide()
 
             //确定创建新房间
             $('#create_room_button').click(function () {
@@ -55,13 +54,6 @@
             //确定加入已有房间
             $('#apply_join_button').click(function () {
                 joinRoom()
-            })
-
-            //创建时勾选角色时计算房间能够容纳的人数(座位数)
-            $('#create_room_div :checkbox').click(function () {
-                var size = $('#create_room_div input:checked').length
-                $('#apply_create_button').html('(人数:' + (size - 3) + ') 确定')
-                $('#create_room_div').show()
             })
 
             $('#config_card_div > :checkbox').each(function(idx, element){
@@ -117,6 +109,15 @@
                 ajaxGet(url)
             })
 
+            $('#seat_div > .seat').click(function(e){
+                //点击空白座位
+                e.cancelBubble = true
+                e.stopPropagation()     //阻止事件向上传递
+                e.preventDefault()      //放弃默认的行为，例如双击选中
+                var roomID = $('#room_id_span').html()
+                var url = '/onk/seat/' + roomID + '/' + $(this).attr('location')
+                ajaxGet(url)
+            })
             function joinRoom() {
                 var roomID = $('#room_id_number').val()
 
@@ -130,12 +131,12 @@
                     success: function () {
                         //进入房间后订阅该房间的公共频道
                         var topicURL = '/topic/' + roomID
-                        var topicSock = new SockJS(endpointURL)
-                        var topicStomp = Stomp.over(topicSock)
+                        topicSock = new SockJS(endpointURL)
+                        topicStomp = Stomp.over(topicSock)
                         topicStomp.connect('guest', 'guest', function (frame) {
                             topicStomp.subscribe(topicURL, function (message) {
                                 var xskrMessage = JSON.parse(message.body)
-                                disableAll()
+                                // disableAll()
                                 var clientAction = xskrMessage.action
                                 if (clientAction == 'ROOM_CHANGED') {
                                     //刷新房间信息
@@ -183,32 +184,44 @@
                 //刷新房间信息
                 var room = xskrMessage.data
                 refreshPlayerList(room)
-                //如果当前玩家未在座位上也没在观看者中说明该玩家已经离开，那么切换到进入房间的页面
-                var isPlaying = false
-                //检查当前玩家是否在玩家列表中
-                for(var i in room.players){
-                    var player = room.players[i]
-                    if(player.name == $('#player_hidden').val()){
-                        isPlaying = true
-                        break;
-                    }
+                // //如果当前玩家未在座位上也没在观看者中说明该玩家已经离开，那么切换到进入房间的页面
+                // var isPlaying = false
+                // //检查当前玩家是否在玩家列表中
+                // for(var i in room.players){
+                //     var player = room.players[i]
+                //     if(player.name == $('#player_hidden').val()){
+                //         isPlaying = true
+                //         break;
+                //     }
+                // }
+                // var isObserving = false
+                // if(!isPlaying){
+                //     //检查当前玩家是否在observer列表中
+                //     for(var i in room.observers){
+                //         var observer = room.observers[i]
+                //         if(observer == $('#player_hidden').val()){
+                //             isObserving = true;
+                //             break;
+                //         }
+                //     }
+                // }
+                // var inRoom = isPlaying || isObserving
+                // if(!inRoom){
+                //     //实现离开房间的逻辑
+                //     $('#create_join_div').show()
+                //     $('#room_div').hide()
+                // }
+            }else if(clientAction == 'LEAVE_ROOM'){
+                //实现离开房间的逻辑
+                $('#create_join_div').show()
+                $('#room_div').hide()
+                $('#room_id_number').prop('disabled', false)
+                //断开监听房间共有频道
+                if(topicStomp != null){
+                    topicStomp.close()
                 }
-                var isObserving = false
-                if(!isPlaying){
-                    //检查当前玩家是否在observer列表中
-                    for(var i in room.observers){
-                        var observer = room.observers[i]
-                        if(observer == $('#player_hidden').val()){
-                            isObserving = true;
-                            break;
-                        }
-                    }
-                }
-                var inRoom = isPlaying || isObserving
-                if(!inRoom){
-                    //实现离开房间的逻辑
-                    $('#create_join_div').show()
-                    $('#room_div').hide()
+                if(topicSock != null){
+                    topicSock.close()
                 }
             }else if(clientAction == 'RECONNECT'){
                 //断线重连
@@ -216,10 +229,10 @@
                 var room = xskrMessage.data
                 var playerName = $('#player_hidden').val()
                 refreshPlayerList(room)
-                for(var i in room.players){
-                    var player = players[i]
-                    if(player['userName'] == playerName){
-                        var keyMessages = player['keyMessage']
+                for(var i in room.seats){
+                    var seat = room.seats[i]
+                    if(seat['userName'] == playerName){
+                        var keyMessages = seat['keyMessage']
                         //显示本局该玩家所有关键游戏信息
                         var lastXskrMessage
                         for(var j in keyMessages){
@@ -254,6 +267,7 @@
 
         function disableAll(){
             $('input').prop('disabled', true)
+            $('button').prop('disabled', true)
             //玩家的DIV不能再点击
             // $('input').prop('onclick', null).off('click')
             // $('div').prop('onclick', null).off('click')
@@ -267,7 +281,7 @@
             $('#seat_div > * > button').prop('disabled', false)
             //不能点自己
             var playerName = $('#player_hidden').val()
-            alert($('#seat_div > div[playerName="' + playerName + '"]').length)
+            // alert($('#seat_div > div[playerName="' + playerName + '"]').length)
             $('#seat_div > div[playerName="' + playerName + '"]').prop('disabled', true)
         }
 
@@ -291,66 +305,49 @@
             //ready可用
             $('#ready_checkbox').prop('disabled', false)
 
-            //TODO 这里是重新构建，但如果座位数不变的话刷新就可以了，只有座位数变化了才需要重新构建
-            //构建座位区域
-            $('#seat_div').html('')
-            //建立所有的座位区域
-            for (var i = 0; i < room.seatCount; i++) {
-                //TODO 修改座位的样式
-                var seatDiv = $('<div/>', {
-                    'style': 'width:90%; height:60px; text-align: left; background-color: gray; border-style: groove',
-                    'id': 'seat_div_' + i
-                })
-                seatDiv.bind('click', {'location': i}, function(e){
-                    //点击空白座位
-                    e.cancelBubble = true
-                    e.stopPropagation()     //阻止事件向上传递
-                    e.preventDefault()      //放弃默认的行为，例如双击选中
-                    var roomID = $('#room_id_span').html()
-                    var url = '/onk/seat/' + roomID + '/' + e.data.location
-                    ajaxGet(url)
-                })
-                $('#seat_div').append(seatDiv)
-            }
             //将玩家放置到座位区域上去
-            var players = room.players
-            for (var idx in players) {
-                var player = players[idx]
-                var location = player['location']
-                if(location != null && location >= 0 && location < room.seatCount){
+            for (var idx in room.seats) {
+                var seat = room.seats[idx]
+                var seatDiv = $('#seat_' + idx)
+                seatDiv.html("")
+                if(idx >= 0 && idx < room.availableSeatCount){
                     //当房主改变房间设定时，可能会出现玩家座位超出可用座位数的情况, 这里保障座位是有效的
-                    var playerName = player['userName']
-                    var ready = player['ready']
-                    var playerInfo = location + '. ' + playerName;
-                    var playerButtonID = 'player_button_' + idx;
-                    if (playerName == $('#player_hidden').val()) {
-                        //标记当前玩家
-                        playerInfo = '☺' + playerInfo
-                        //刷新当前玩家的准备状态
-                        $('#ready_checkbox').prop('checked', ready)
-                    } else {
-                        //do nothing
+                    var playerName = seat['userName']
+                    if(playerName != null){
+                        var ready = seat['ready']
+                        var playerInfo = idx + '. ' + playerName;
+                        var playerButtonID = 'player_button_' + idx;
+                        if (playerName == $('#player_hidden').val()) {
+                            //标记当前玩家
+                            playerInfo = '☺' + playerInfo
+                            //刷新当前玩家的准备状态
+                            $('#ready_checkbox').prop('checked', ready)
+                        } else {
+                            //do nothing
+                        }
+
+                        if(ready){
+                            playerInfo = playerInfo + ' ∞'
+                        }else{
+                            //do nothing
+                        }
+
+                        var playerButton = $('<button/>', {
+                            'id': playerButtonID,
+                            'text': playerInfo
+                        })
+
+                        var outcome = $('<span/>', {
+                            'class': 'outcome',
+                            'id': 'player_outcome_span_' + idx
+                        })
+                        seatDiv.append(playerButton)
+                        seatDiv.append(outcome)
+                        seatDiv.attr('playerName', playerName)
                     }
-
-                    if(ready){
-                        playerInfo = playerInfo + ' ∞'
-                    }else{
-                        //do nothing
-                    }
-
-                    var playerButton = $('<button/>', {
-                        'id': playerButtonID,
-                        'text': playerInfo
-                    })
-
-                    var outcome = $('<span/>', {
-                        'class': 'outcome',
-                        'id': 'player_outcome_span_' + location
-                    })
-
-                    $('#seat_div_' + location).append(playerButton)
-                    $('#seat_div_' + location).append(outcome)
-                    $('#seat_div_' + location).attr('playerName', playerName)
+                }else{
+                    //不可用的座位
+                    seatDiv.css('background-color', 'lightgray')
                 }
             }
         }
@@ -454,6 +451,10 @@
         #config_card_div > label{
             margin-right: 20px
         }
+
+        .seat{
+            width:90%; height:60px; text-align: left; background-color: gray; border-style: groove;
+        }
     </style>
 </head>
 <body>
@@ -527,7 +528,18 @@ room_div
 
     <div id="game_div" class="row">
         <div id="seat_div" class="col-sm-4 col-lg-4 col-md-4 col-xs-4">
-
+            <div id="seat_0" location="0" class="seat">1</div>
+            <div id="seat_1" location="1" class="seat">2</div>
+            <div id="seat_2" location="2" class="seat">3</div>
+            <div id="seat_3" location="3" class="seat">4</div>
+            <div id="seat_4" location="4" class="seat">5</div>
+            <div id="seat_5" location="5" class="seat">6</div>
+            <div id="seat_6" location="6" class="seat">7</div>
+            <div id="seat_7" location="7" class="seat">8</div>
+            <div id="seat_8" location="8" class="seat">9</div>
+            <div id="seat_9" location="9" class="seat">10</div>
+            <div id="seat_10" location="10" class="seat">11</div>
+            <div id="seat_11" location="11" class="seat">12</div>
         </div>
         <div id="messages_div" class="col-sm-5 col-lg-5 col-md-5 col-xs-5"></div>
         <div id="deck_div" class="col-sm-2 col-lg-2 col-md-2 col-xs-2">

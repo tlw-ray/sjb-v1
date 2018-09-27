@@ -53,15 +53,15 @@ public class TestRoom {
         Seat troublemaker = room.getSeatByInitializeCard(Card.TROUBLEMAKER);
         if(troublemaker != null){
             int seat1, seat2;
-            if(troublemaker.getLocation() == 0){
+            if(room.getLocation(troublemaker) == 0){
                 seat1 = playerCount - 1;
-                seat2 = troublemaker.getLocation() + 1;
-            }else if(troublemaker.getLocation() == playerCount-1){
-                seat1 = troublemaker.getLocation() - 1;
+                seat2 = room.getLocation(troublemaker) + 1;
+            }else if(room.getLocation(troublemaker) == playerCount-1){
+                seat1 = room.getLocation(troublemaker) - 1;
                 seat2 = 0;
             }else{
-                seat1 = troublemaker.getLocation() - 1;
-                seat2 = troublemaker.getLocation() + 1;
+                seat1 = room.getLocation(troublemaker) - 1;
+                seat2 = room.getLocation(troublemaker) + 1;
             }
             room.pickSeat(troublemaker.getUserName(), seat1);
             room.pickSeat(troublemaker.getUserName(), seat2);
@@ -91,7 +91,7 @@ public class TestRoom {
         System.out.println(tanner);
         if(tanner != null) {
             for (Seat player : room.getSeats()) {
-                room.vote(player.getUserName(), tanner.getLocation());
+                room.vote(player.getUserName(), room.getLocation(tanner));
             }
         }else{
             System.out.println("场面上没有皮匠，无法模拟皮匠被单独得票最高的场景");
@@ -103,19 +103,19 @@ public class TestRoom {
         if(hunter != null){
             for(Seat player:room.getSeats()){
 //                player.setVoteSeat(hunter.getLocation());
-                room.pickSeat(player.getUserName(), hunter.getLocation());
+                room.pickSeat(player.getUserName(), room.getLocation(hunter));
             }
 
             if(wolf != null) {
                 //2.1 猎人投了狼: 村民阵营胜利
 //                room.hunterVote(hunter.getUserName(), wolf.getLocation());
-                room.pickSeat(hunter.getUserName(), wolf.getLocation());
+                room.pickSeat(hunter.getUserName(), room.getLocation(wolf));
             }else{
                 System.out.println("场面上没有狼存在，无法模拟有狼且猎人被投出的情况。");
             }
             if(tanner != null){
                 //2.2 猎人投了皮匠: 皮匠阵营胜利
-                room.hunterVote(hunter.getUserName(), tanner.getLocation());
+                room.hunterVote(hunter.getUserName(), room.getLocation(tanner));
             }else{
                 System.out.println("场面上没有皮匠存在，无法模拟有狼且猎人被投出的情况。");
             }
@@ -123,7 +123,7 @@ public class TestRoom {
             for(Seat player:room.getSeats()){
                 //2.3 猎人投了村民: 狼人阵营胜利
                 if(Camp.isVillagerCamp(player.getCard())){
-                    room.hunterVote(hunter.getUserName(), player.getLocation());
+                    room.hunterVote(hunter.getUserName(), room.getLocation(player));
                     break;
                 }
             }
@@ -136,14 +136,14 @@ public class TestRoom {
         if(wolf != null){
             //3.1 有狼且狼被投出: 村民获胜
             for(Seat player:room.getSeats()){
-                room.vote(player.getUserName(), wolf.getLocation());
+                room.vote(player.getUserName(), room.getLocation(wolf));
             }
             clearVote(room);
             //3.2 有狼且爪牙被投出: 狼获胜
             Seat minion = room.getSeatByInitializeCard(Card.MINION);
             if(minion != null){
                 for(Seat player:room.getSeats()){
-                    room.vote(player.getUserName(), minion.getLocation());
+                    room.vote(player.getUserName(), room.getLocation(minion));
                 }
                 clearVote(room);
             }else{
@@ -162,7 +162,7 @@ public class TestRoom {
                 }
             }
             for(Seat player:room.getSeats()){
-                room.vote(player.getUserName(), normalPlayer.getLocation());
+                room.vote(player.getUserName(), room.getLocation(normalPlayer));
             }
             clearVote(room);
         }else{
@@ -178,7 +178,7 @@ public class TestRoom {
             wolf2.setCard(room.getDesktopCards().get(2));
         }
         for (Seat player : room.getSeats()) {
-            room.vote(player.getUserName(), player.getLocation());
+            room.vote(player.getUserName(), room.getLocation(player));
         }
     }
 
