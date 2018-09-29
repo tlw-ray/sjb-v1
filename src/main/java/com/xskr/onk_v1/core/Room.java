@@ -86,10 +86,26 @@ public class Room {
             //玩家已经在该房间, 玩家断线重连
             message = String.format("%s断线重连回到游戏", userName);
             clientAction = ClientAction.RECONNECT;
-
         }else{
-            //新用户加入房间
-            observers.add(userName);
+            //新用户加入房间,找一个空座位坐下
+            boolean seated = false;
+            for(int i=0;i<getAvailableSeatCount();i++){
+                Seat seat = getSeats().get(i);
+                if(seat.getUserName() == null){
+                    seat.setUserName(userName);
+                    //告知大家新玩家进入和坐下，座位状态变化了
+                    XskrMessage roomChangedMessage = new XskrMessage(null, ClientAction.ROOM_CHANGED, this);
+                    sendMessage(roomChangedMessage);
+                    seated = true;
+                    break;
+                }
+            }
+            //如果没有空座位了就加入observer
+            if(!seated){
+                observers.add(userName);
+            }else{
+                //do nothing
+            }
             message = String.format("%s加入了房间", userName);
             clientAction = ClientAction.ROOM_CHANGED;
         }
@@ -123,17 +139,18 @@ public class Room {
      * @param userName 玩家
      * @return 该玩家最终处于的ready状态
      */
-    public boolean setReady(String userName, boolean ready){
+    public void setReady(String userName, boolean ready){
         if(scene == Scene.ACTIVATE || scene == Scene.VOTE) {
             //如果已经开始或正在投票则不可改变ready状态
-            return true;
         }else if(scene == Scene.PREPARE){
             logger.debug("setReady(userName = {}, pickReady = {})", userName, ready);
             Seat seat = getSeatByUserName(userName);
 
             if(seat != null) {
-                //设定该玩家的ready状态
+                //玩家准备状态改变
                 seat.setReady(ready);
+                XskrMessage xskrMessage = new XskrMessage("", ClientAction.ROOM_CHANGED, this);
+                sendMessage(xskrMessage);
                 if(ready) {
                     //检查是否能够触发游戏开始事件
                     //如果玩家数量达到座位数量，且玩家都是ready状态则触发新游戏事件
@@ -153,7 +170,6 @@ public class Room {
                 }else{
                     //如果玩家取消准备那么不需要检查游戏是否开始
                 }
-                return ready;
             }else{
                 if(observers.contains(userName)){
                     String message = String.format("玩家%s是观看者，无法设定准备状态。", userName);
@@ -209,8 +225,10 @@ public class Room {
         }
         return null;
     }
+
     /**
      * 初始化一局游戏
+     * @return 如果开始新一局游戏返回true， 若未能开始返回false
      */
     private void newGame(){
         //如果有座位空着或者座位上的玩家不在ready状态则无法开始新游戏
@@ -234,7 +252,7 @@ public class Room {
         //标记进入游戏状态
         scene = Scene.ACTIVATE;
         logger.debug("newGame()");
-        XskrMessage xskrMessage = new XskrMessage("新一局开始了！", null, null);
+        XskrMessage xskrMessage = new XskrMessage("新一局开始了！", ClientAction.NEW_GAME, null);
         sendMessage(xskrMessage);
 
         Deck deck = new Deck(cards);
@@ -324,7 +342,7 @@ public class Room {
             //没有任何玩家需要行动，直接进入投票阶段
             Random random = new Random();
             //随机等待约10秒，至少3秒，模拟有人在行动的情况
-            long span = 3000 + random.nextInt(13000);
+            long span = 3000 + random.nextInt(3000);
             try {
                 Thread.sleep(span);
             }catch(Exception e){
@@ -981,7 +999,7 @@ public class Room {
             }
         } else {
             String message = String.format("座位序号%s不合理，应取值在%s到%s之间。", location, 0, getAvailableSeatCount() - 1);
-            throw new RuntimeException(message);
+            logger.warn(message);
         }
     }
 

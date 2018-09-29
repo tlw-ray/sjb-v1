@@ -72,10 +72,10 @@ public class ONKController{
      * @return 服务端返回的该玩家准备状态
      */
     @RequestMapping(path = "/ready/{roomID}/{ready}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public boolean pickReady(@PathVariable int roomID, @PathVariable boolean ready){
+    public void pickReady(@PathVariable int roomID, @PathVariable boolean ready){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        return room.setReady(userName, ready);
+        room.setReady(userName, ready);
     }
 
     /**

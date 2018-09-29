@@ -14,5 +14,7 @@ public enum ClientAction {
 
     LEAVE_ROOM,                     //此玩家离开房间事件
 
+    NEW_GAME,                       //新一局游戏开始
+
     GAME_FINISH                     //一局游戏结束，解除所有玩家的准备状态
 }

@@ -19,7 +19,8 @@
             var queueStomp = Stomp.over(queueSock)
             queueStomp.connect({}, function (frame) {
                 //记录当前客户端玩家身份
-                $('#player_hidden').val(frame['headers']['user-userName'])
+                console.log(frame)
+                $('#player_hidden').val(frame['headers']['user-name'])
                 queueStomp.subscribe(queueURL, function (message) {
                     var xskrMessage = JSON.parse(message.body)
                     //将收到消息的message显示
@@ -28,7 +29,66 @@
                     }
                     // disableAll()
                     //处理个人频道推送的信息
-                    processUserQueueAction(xskrMessage)
+                    var clientAction = xskrMessage.action
+                    if (clientAction == 'ROOM_CHANGED') {
+                        //初次加入房间收到房间信息的私信
+                        var room = xskrMessage.data
+                        refreshPlayerList(room)
+                        //初次加入房间找第一个空位坐下
+                        // var firstEmptySeat = $('#seat_div > div:empty(playername)').first()
+                        // $(firstEmptySeat).click()
+                    }else if(clientAction == 'LEAVE_ROOM'){
+                        //实现离开房间的逻辑
+                        $('#create_join_div').show()
+                        $('#room_div').hide()
+                        $('#room_id_number').prop('disabled', false)
+                        //断开监听房间共有频道
+                        if(topicStomp != null){
+                            topicStomp.close()
+                        }
+                        if(topicSock != null){
+                            topicSock.close()
+                        }
+                    }else if(clientAction == 'RECONNECT'){
+                        //断线重连
+                        //除了刷新房间信息，还需要输出该玩家的关键消息
+                        var room = xskrMessage.data
+                        var playerName = $('#player_hidden').val()
+                        refreshPlayerList(room)
+                        for(var i in room.seats){
+                            var seat = room.seats[i]
+                            if(seat['userName'] == playerName){
+                                var keyMessages = seat['keyMessage']
+                                //显示本局该玩家所有关键游戏信息
+                                var lastXskrMessage
+                                for(var j in keyMessages){
+                                    lastXskrMessage = keyMessages[j]
+                                    $('#messages_div').append(lastXskrMessage.message + '<br>')
+                                }
+                                //断线重连根据最后一次clientAction决定行动按钮的具体行为
+                                clientAction = lastXskrMessage.action
+                                break
+                            }
+                        }
+                    }else if (clientAction == 'SINGLE_WOLF_ACTION') {
+                        enableDesktopCards()
+                        enablePlayersWithoutSelf()
+                    } else if (clientAction == 'DRUNK_ACTION') {
+                        enableDesktopCards()
+                    } else if (clientAction == 'ROBBER_ACTION') {
+                        enablePlayersWithoutSelf()
+                    } else if (clientAction == 'SEER_ACTION') {
+                        enableDesktopCards()
+                        enablePlayersWithoutSelf()
+                    } else if (clientAction == 'TROUBLEMAKER_ACTION') {
+                        enablePlayersWithoutSelf()
+                    } else if (clientAction == 'VOTE_ACTION') {
+                        enablePlayersWithoutSelf()
+                    } else if (clientAction == 'HUNTER_VOTE_ACTION') {
+                        enablePlayersWithoutSelf()
+                    } else {
+                        console.log("Unsupported action: " + clientAction)
+                    }
                 })
             })
 
@@ -83,18 +143,7 @@
                 $('.outcome').html('')
                 //清空消息栏
                 $('#messages_div').html('')
-                $.ajax({
-                    url: '/onk/ready/' + $('#room_id_span').html() + '/' + $('#ready_checkbox').prop('checked'),
-                    Accept: 'application/json',
-                    contentType: 'application/json',
-                    success: function (ready) {
-                        console.log('ready: ' + ready)
-                        $('#ready_checkbox').prop('checked', ready)
-                    },
-                    error: function (ex) {
-                        console.log(JSON.stringify(ex))
-                    }
-                })
+                ajaxGet('/onk/ready/' + $('#room_id_span').html() + '/' + $('#ready_checkbox').prop('checked'))
             })
 
             $('#exit_button').click(function(){
@@ -160,14 +209,13 @@
                                     }
                                 } else if (clientAction == 'VOTE_ACTION') {
                                     enablePlayersWithoutSelf()
+                                } else if(clientAction == 'NEW_GAME'){
+                                    $('#ready_checkbox').prop('disabled', true)
                                 }
                                 if (xskrMessage.message != null) {
                                     $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
                                 }
                             })
-                            //初次加入房间找第一个空位坐下
-                            var firstEmptySeat = $('#seat_div > div:empty(playername)').first()
-                            $(firstEmptySeat).click()
                         })
                     },
                     error: function (ex) {
@@ -177,93 +225,6 @@
                 })
             }
         })
-
-        function processUserQueueAction(xskrMessage) {
-            var clientAction = xskrMessage.action
-            if (clientAction == 'ROOM_CHANGED') {
-                //刷新房间信息
-                var room = xskrMessage.data
-                refreshPlayerList(room)
-                // //如果当前玩家未在座位上也没在观看者中说明该玩家已经离开，那么切换到进入房间的页面
-                // var isPlaying = false
-                // //检查当前玩家是否在玩家列表中
-                // for(var i in room.players){
-                //     var player = room.players[i]
-                //     if(player.name == $('#player_hidden').val()){
-                //         isPlaying = true
-                //         break;
-                //     }
-                // }
-                // var isObserving = false
-                // if(!isPlaying){
-                //     //检查当前玩家是否在observer列表中
-                //     for(var i in room.observers){
-                //         var observer = room.observers[i]
-                //         if(observer == $('#player_hidden').val()){
-                //             isObserving = true;
-                //             break;
-                //         }
-                //     }
-                // }
-                // var inRoom = isPlaying || isObserving
-                // if(!inRoom){
-                //     //实现离开房间的逻辑
-                //     $('#create_join_div').show()
-                //     $('#room_div').hide()
-                // }
-            }else if(clientAction == 'LEAVE_ROOM'){
-                //实现离开房间的逻辑
-                $('#create_join_div').show()
-                $('#room_div').hide()
-                $('#room_id_number').prop('disabled', false)
-                //断开监听房间共有频道
-                if(topicStomp != null){
-                    topicStomp.close()
-                }
-                if(topicSock != null){
-                    topicSock.close()
-                }
-            }else if(clientAction == 'RECONNECT'){
-                //断线重连
-                //除了刷新房间信息，还需要输出该玩家的关键消息
-                var room = xskrMessage.data
-                var playerName = $('#player_hidden').val()
-                refreshPlayerList(room)
-                for(var i in room.seats){
-                    var seat = room.seats[i]
-                    if(seat['userName'] == playerName){
-                        var keyMessages = seat['keyMessage']
-                        //显示本局该玩家所有关键游戏信息
-                        var lastXskrMessage
-                        for(var j in keyMessages){
-                            lastXskrMessage = keyMessages[j]
-                            $('#messages_div').append(lastXskrMessage.message + '<br>')
-                        }
-                        //断线重连根据最后一次clientAction决定行动按钮的具体行为
-                        clientAction = lastXskrMessage.action
-                        break
-                    }
-                }
-            }else if (clientAction == 'SINGLE_WOLF_ACTION') {
-                enableDesktopCards()
-                enablePlayersWithoutSelf()
-            } else if (clientAction == 'DRUNK_ACTION') {
-                enableDesktopCards()
-            } else if (clientAction == 'ROBBER_ACTION') {
-                enablePlayersWithoutSelf()
-            } else if (clientAction == 'SEER_ACTION') {
-                enableDesktopCards()
-                enablePlayersWithoutSelf()
-            } else if (clientAction == 'TROUBLEMAKER_ACTION') {
-                enablePlayersWithoutSelf()
-            } else if (clientAction == 'VOTE_ACTION') {
-                enablePlayersWithoutSelf()
-            } else if (clientAction == 'HUNTER_VOTE_ACTION') {
-                enablePlayersWithoutSelf()
-            } else {
-                console.log("Unsupported action: " + clientAction)
-            }
-        }
 
         function disableAll(){
             $('input').prop('disabled', true)
@@ -297,14 +258,6 @@
                 $(checkboxName).prop('checked', true)
             }
 
-            //如果玩家是房主则可以在准备期间修改房间的卡牌设定
-            if($('#player_hidden').val() == room.owner){
-                $('#config_card_div > :checkbox').prop('disabled', false)
-            }
-
-            //ready可用
-            $('#ready_checkbox').prop('disabled', false)
-
             //将玩家放置到座位区域上去
             for (var idx in room.seats) {
                 var seat = room.seats[idx]
@@ -322,12 +275,25 @@
                             playerInfo = '☺' + playerInfo
                             //刷新当前玩家的准备状态
                             $('#ready_checkbox').prop('checked', ready)
+
+                            //如果玩家是房主且没有准备则可以在准备期间修改房间的卡牌设定
+                            if(playerName == room.owner && !ready){
+                                $('#config_card_div > :checkbox').prop('disabled', false)
+                            }else{
+                                $('#config_card_div > :checkbox').prop('disabled', true)
+                            }
                         } else {
                             //do nothing
                         }
 
+                        if(playerName == room.owner){
+                            playerInfo = '_ ' + playerInfo
+                        }else{
+                            //do nothing
+                        }
+
                         if(ready){
-                            playerInfo = playerInfo + ' ∞'
+                            playerInfo = playerInfo + ' √'
                         }else{
                             //do nothing
                         }
@@ -345,6 +311,7 @@
                         seatDiv.append(outcome)
                         seatDiv.attr('playerName', playerName)
                     }
+                    seatDiv.css('background-color', 'gray')
                 }else{
                     //不可用的座位
                     seatDiv.css('background-color', 'lightgray')
@@ -528,18 +495,18 @@ room_div
 
     <div id="game_div" class="row">
         <div id="seat_div" class="col-sm-4 col-lg-4 col-md-4 col-xs-4">
-            <div id="seat_0" location="0" class="seat">1</div>
-            <div id="seat_1" location="1" class="seat">2</div>
-            <div id="seat_2" location="2" class="seat">3</div>
-            <div id="seat_3" location="3" class="seat">4</div>
-            <div id="seat_4" location="4" class="seat">5</div>
-            <div id="seat_5" location="5" class="seat">6</div>
-            <div id="seat_6" location="6" class="seat">7</div>
-            <div id="seat_7" location="7" class="seat">8</div>
-            <div id="seat_8" location="8" class="seat">9</div>
-            <div id="seat_9" location="9" class="seat">10</div>
-            <div id="seat_10" location="10" class="seat">11</div>
-            <div id="seat_11" location="11" class="seat">12</div>
+            <span>1</span><div id="seat_0" location="0" class="seat">1</div>
+            <span>2</span><div id="seat_1" location="1" class="seat">2</div>
+            <span>3</span><div id="seat_2" location="2" class="seat">3</div>
+            <span>4</span><div id="seat_3" location="3" class="seat">4</div>
+            <span>5</span><div id="seat_4" location="4" class="seat">5</div>
+            <span>6</span><div id="seat_5" location="5" class="seat">6</div>
+            <span>7</span><div id="seat_6" location="6" class="seat">7</div>
+            <span>8</span><div id="seat_7" location="7" class="seat">8</div>
+            <span>9</span><div id="seat_8" location="8" class="seat">9</div>
+            <span>10</span><div id="seat_9" location="9" class="seat">10</div>
+            <span>11</span><div id="seat_10" location="10" class="seat">11</div>
+            <span>12</span><div id="seat_11" location="11" class="seat">12</div>
         </div>
         <div id="messages_div" class="col-sm-5 col-lg-5 col-md-5 col-xs-5"></div>
         <div id="deck_div" class="col-sm-2 col-lg-2 col-md-2 col-xs-2">
