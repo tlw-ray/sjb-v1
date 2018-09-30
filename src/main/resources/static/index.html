@@ -6,7 +6,7 @@
     <meta userName="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <script src="/webjars/jquery/jquery.min.js"></script>
     <script src="/webjars/sockjs-client/sockjs.min.js"></script>
-    <script src="/webjars/stomp-websocket/stomp.min.js"></script>
+    <script src="stomp.js"></script>
     <link href="/webjars/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <script>
         var endpointURL = '/onk/endpoint'
@@ -30,45 +30,49 @@
                     // disableAll()
                     //处理个人频道推送的信息
                     var clientAction = xskrMessage.action
-                    if (clientAction == 'ROOM_CHANGED') {
-                        //初次加入房间收到房间信息的私信
+                    // if (clientAction == 'ROOM_CHANGED') {
+                    //     //初次加入房间收到房间信息的私信
+                    //     var room = xskrMessage.data
+                    //     refreshPlayerList(room)
+                    //     //初次加入房间找第一个空位坐下
+                    //     // var firstEmptySeat = $('#seat_div > div:empty(playername)').first()
+                    //     // $(firstEmptySeat).click()
+                    // }else
+                    if(clientAction == 'RECONNECT'){
+                        //断线重连
+                        //除了刷新房间信息，还需要输出该玩家的关键消息
                         var room = xskrMessage.data
-                        refreshPlayerList(room)
-                        //初次加入房间找第一个空位坐下
-                        // var firstEmptySeat = $('#seat_div > div:empty(playername)').first()
-                        // $(firstEmptySeat).click()
-                    }else if(clientAction == 'LEAVE_ROOM'){
+                        var playerName = $('#player_hidden').val()
+                        // refreshPlayerList(room)
+                        for(var i in room.seats){
+                            var seat = room.seats[i]
+                            if(seat['userName'] == playerName){
+                                var keyMessages = seat['keyMessages']
+                                //显示本局该玩家所有关键游戏信息
+                                var lastXskrMessage
+                                for(var j in keyMessages){
+                                    lastXskrMessage = keyMessages[j]
+                                    $('#messages_div').append(lastXskrMessage.message + '<br>')
+                                    //最后一次关键消息的ClientAction
+                                    clientAction = lastXskrMessage.action
+                                }
+                                //断线重连根据最后一次clientAction决定行动按钮的具体行为
+                                // clientAction = lastXskrMessage.action
+                                break
+                            }
+                        }
+                    }
+                    if(clientAction == 'LEAVE_ROOM'){
                         //实现离开房间的逻辑
                         $('#create_join_div').show()
                         $('#room_div').hide()
                         $('#room_id_number').prop('disabled', false)
                         //断开监听房间共有频道
                         if(topicStomp != null){
-                            topicStomp.close()
+                            topicStomp.disconnect()
                         }
                         if(topicSock != null){
                             topicSock.close()
-                        }
-                    }else if(clientAction == 'RECONNECT'){
-                        //断线重连
-                        //除了刷新房间信息，还需要输出该玩家的关键消息
-                        var room = xskrMessage.data
-                        var playerName = $('#player_hidden').val()
-                        refreshPlayerList(room)
-                        for(var i in room.seats){
-                            var seat = room.seats[i]
-                            if(seat['userName'] == playerName){
-                                var keyMessages = seat['keyMessage']
-                                //显示本局该玩家所有关键游戏信息
-                                var lastXskrMessage
-                                for(var j in keyMessages){
-                                    lastXskrMessage = keyMessages[j]
-                                    $('#messages_div').append(lastXskrMessage.message + '<br>')
-                                }
-                                //断线重连根据最后一次clientAction决定行动按钮的具体行为
-                                clientAction = lastXskrMessage.action
-                                break
-                            }
                         }
                     }else if (clientAction == 'SINGLE_WOLF_ACTION') {
                         enableDesktopCards()
@@ -151,6 +155,7 @@
                 ajaxGet('/onk/leave/' + roomID)
                 $('#create_join_div').show()
                 $('#room_div').hide()
+                $('#messages_div').html('')
             })
 
             $('#deck_div > button').click(function(){
@@ -172,56 +177,46 @@
 
                 //加入房间
                 $('#room_id_span').html(roomID)
-                //进入房间，订阅该房间的消息
-                $.ajax({
-                    url: '/onk/join/' + roomID,
-                    Accept: 'application/json',
-                    contentType: 'application/json',
-                    success: function () {
-                        //进入房间后订阅该房间的公共频道
-                        var topicURL = '/topic/' + roomID
-                        topicSock = new SockJS(endpointURL)
-                        topicStomp = Stomp.over(topicSock)
-                        topicStomp.connect('guest', 'guest', function (frame) {
-                            topicStomp.subscribe(topicURL, function (message) {
-                                var xskrMessage = JSON.parse(message.body)
-                                // disableAll()
-                                var clientAction = xskrMessage.action
-                                if (clientAction == 'ROOM_CHANGED') {
-                                    //刷新房间信息
-                                    var room = xskrMessage.data
-                                    refreshPlayerList(room)
-                                }else if (clientAction == 'GAME_FINISH') {
-                                    //重置ready供玩家开启新一局游戏
-                                    $('#ready_checkbox').prop('checked', false)
-                                    $('#ready_checkbox').prop('disabled', false)
-                                    //输出玩家输赢状态
-                                    for (var idx in xskrMessage.data) {
-                                        var data = xskrMessage.data[idx]
-                                        var outcomeMessage = getCampName(data.camp)
-                                        if (data.win) {
-                                            outcomeMessage += ' 获胜 '
-                                        } else {
-                                            outcomeMessage += ' 失败 '
-                                        }
-                                        outcomeMessage = outcomeMessage + '(' + getCardName(data.initializeCard) + '->' + getCardName(data.finalCard) + ')'
-                                        $('#player_outcome_span_' + data.location).html(outcomeMessage)
-                                    }
-                                } else if (clientAction == 'VOTE_ACTION') {
-                                    enablePlayersWithoutSelf()
-                                } else if(clientAction == 'NEW_GAME'){
-                                    $('#ready_checkbox').prop('disabled', true)
+                //订阅该房间的公共频道
+                var topicURL = '/topic/' + roomID
+                topicSock = new SockJS(endpointURL)
+                topicStomp = Stomp.over(topicSock)
+                topicStomp.connect('guest', 'guest', function (frame) {
+                    topicStomp.subscribe(topicURL, function (message) {
+                        var xskrMessage = JSON.parse(message.body)
+                        // disableAll()
+                        var clientAction = xskrMessage.action
+                        if (clientAction == 'ROOM_CHANGED') {
+                            //刷新房间信息
+                            var room = xskrMessage.data
+                            refreshPlayerList(room)
+                        }else if (clientAction == 'GAME_FINISH') {
+                            //重置ready供玩家开启新一局游戏
+                            $('#ready_checkbox').prop('checked', false)
+                            $('#ready_checkbox').prop('disabled', false)
+                            //输出玩家输赢状态
+                            for (var idx in xskrMessage.data) {
+                                var data = xskrMessage.data[idx]
+                                var outcomeMessage = getCampName(data.camp)
+                                if (data.win) {
+                                    outcomeMessage += ' 获胜 '
+                                } else {
+                                    outcomeMessage += ' 失败 '
                                 }
-                                if (xskrMessage.message != null) {
-                                    $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
-                                }
-                            })
-                        })
-                    },
-                    error: function (ex) {
-                        console.log(JSON.stringify(ex))
-                        alert('加入失败');
-                    }
+                                outcomeMessage = outcomeMessage + '(' + getCardName(data.initializeCard) + '->' + getCardName(data.finalCard) + ')'
+                                $('#player_outcome_span_' + idx).html(outcomeMessage)
+                            }
+                        } else if (clientAction == 'VOTE_ACTION') {
+                            enablePlayersWithoutSelf()
+                        } else if(clientAction == 'NEW_GAME'){
+                            $('#ready_checkbox').prop('disabled', true)
+                        }
+                        if (xskrMessage.message != null) {
+                            $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
+                        }
+                    })
+                    //加入房间
+                    ajaxGet('/onk/join/' + roomID)
                 })
             }
         })

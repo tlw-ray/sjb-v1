@@ -1,6 +1,5 @@
 package com.xskr.onk_v1.core;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xskr.common.XskrMessage;
 
 import java.util.ArrayList;
@@ -16,6 +15,8 @@ import java.util.List;
 public class Seat{
 	//座位上的玩家如果为null说明该座位没有人坐
 	private String userName;
+	//该座位之前玩家，用于断线重连，这名玩家可能断线了也可能有事情离开了房间
+	private String oldUserName;
 	//该座位的初始卡牌
 	private Card initializeCard;
 	//该座位的当前卡牌(卡牌可能会经历某些交换操作)
@@ -88,6 +89,10 @@ public class Seat{
 
 	public void setUserName(String userName) {
 		this.userName = userName;
+		//设定旧的玩家
+		if(userName != null){
+			this.oldUserName = userName;
+		}
 	}
 
 	public List<XskrMessage> getKeyMessages() {
@@ -98,13 +103,20 @@ public class Seat{
 		this.keyMessages = keyMessages;
 	}
 
-	public ClientAction getLastAction() {
-	    if(keyMessages.size() > 0){
-	        return keyMessages.get(keyMessages.size() - 1).getAction();
-        }else{
-	        return null;
-        }
+	public String getOldUserName() {
+		return oldUserName;
 	}
+
+	public void setOldUserName(String oldUserName) {
+		this.oldUserName = oldUserName;
+	}
+//	public ClientAction getLastAction() {
+//	    if(keyMessages.size() > 0){
+//	        return keyMessages.get(keyMessages.size() - 1).getAction();
+//        }else{
+//	        return null;
+//        }
+//	}
 
 //	@JsonIgnore
 //	public Room getRoom() {

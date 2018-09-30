@@ -52,7 +52,9 @@ public class ONKController{
     public void pickJoin(@PathVariable int roomID){
         String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.join(userName);
+        if(room != null){
+            room.join(userName);
+        }
     }
 
     /**

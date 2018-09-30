@@ -79,23 +79,14 @@ public class Room {
     public void join(String userName){
         logger.debug("join(userName = {})", userName);
         Seat playerSeat = getSeatByUserName(userName);
-
-        String message;
-        ClientAction clientAction;
-        if(playerSeat != null){
-            //玩家已经在该房间, 玩家断线重连
-            message = String.format("%s断线重连回到游戏", userName);
-            clientAction = ClientAction.RECONNECT;
-        }else{
-            //新用户加入房间,找一个空座位坐下
+        //游戏在不同状态有人加入
+        if(scene == Scene.PREPARE){
+            //加入准备状态的房间,默认行为是找一个空座位坐下
             boolean seated = false;
             for(int i=0;i<getAvailableSeatCount();i++){
                 Seat seat = getSeats().get(i);
                 if(seat.getUserName() == null){
                     seat.setUserName(userName);
-                    //告知大家新玩家进入和坐下，座位状态变化了
-                    XskrMessage roomChangedMessage = new XskrMessage(null, ClientAction.ROOM_CHANGED, this);
-                    sendMessage(roomChangedMessage);
                     seated = true;
                     break;
                 }
@@ -106,13 +97,29 @@ public class Room {
             }else{
                 //do nothing
             }
-            message = String.format("%s加入了房间", userName);
-            clientAction = ClientAction.ROOM_CHANGED;
+            //告知大家新玩家进入和坐下，座位状态变化了
+            XskrMessage roomChangedMessage = new XskrMessage(null, ClientAction.ROOM_CHANGED, this);
+            sendMessage(roomChangedMessage);
+        }else{
+            //游戏在进行中有人加入
+            Seat oldUserSeat = getSeatByOldUserName(userName);
+            if(oldUserSeat != null){
+                //玩家之前从座位上离开了，现在回到了座位，断线重连
+                oldUserSeat.setUserName(userName);
+                //告知所有玩家xxx回来了
+                String message = String.format("%s回来了", userName);
+                XskrMessage xskrMessage = new XskrMessage(message, ClientAction.ROOM_CHANGED, this);
+                sendMessage(xskrMessage);
+                //告知自己接下来该做的操作
+                XskrMessage reconnectXskrMessage = new XskrMessage(null, ClientAction.RECONNECT, this);
+                sendMessage(userName, reconnectXskrMessage);
+            }else{
+                //加入observer
+                observers.add(userName);
+                XskrMessage xskrMessage = new XskrMessage(null, ClientAction.ROOM_CHANGED, this);
+                sendMessage(userName, xskrMessage);
+            }
         }
-        //TODO 需要考虑房间的最大observer容量吗？
-        //无论是断线重连还是新用户进入，都返回给他私人消息告知房间内的情况
-        XskrMessage roomChangedMessage = new XskrMessage(message, clientAction, this);
-        sendMessage(userName, roomChangedMessage);
     }
 
     /**
@@ -122,15 +129,18 @@ public class Room {
      */
     public void leave(String userName){
         logger.debug("leave(userName = {})", userName);
-        //从观看者中移除
-        if(!observers.remove(userName)){
+        if(observers.remove(userName)){
+            //从观看者中移除
+        }else{
             //从座位上移除该玩家
             Seat playerSeat = getSeatByUserName(userName);
             playerSeat.setUserName(null);
-            String message = String.format("%s离开房间", playerSeat.getUserName());
+            String message = String.format("%s离开房间", userName);
             XskrMessage roomChangedMessage = new XskrMessage(message, ClientAction.ROOM_CHANGED, this);
             sendMessage(roomChangedMessage);
         }
+        XskrMessage roomChangedMessage = new XskrMessage(null, ClientAction.LEAVE_ROOM, this);
+        sendMessage(userName, roomChangedMessage);
     }
 
     /**
@@ -206,6 +216,15 @@ public class Room {
             Seat playerSeat = seats.get(i);
             if(playerSeat.getUserName()!=null && playerSeat.getUserName().equals(userName)){
                 return playerSeat;
+            }
+        }
+        return null;
+    }
+    public Seat getSeatByOldUserName(String oldUserName){
+        for(int i=0;i<getAvailableSeatCount();i++){
+            Seat oldUserSeta = seats.get(i);
+            if(oldUserSeta.getUserName()==null && oldUserSeta.getOldUserName().equals(oldUserName)){
+                return oldUserSeta;
             }
         }
         return null;
@@ -1023,6 +1042,7 @@ public class Room {
     private void sendMessage(String userName, XskrMessage message){
         String roomWebSocketQueue = "/queue";
         if(simpMessagingTemplate != null){
+            System.out.println("send queue: " + roomWebSocketQueue);
             simpMessagingTemplate.convertAndSendToUser(userName, roomWebSocketQueue, message);
         }else{
             System.out.println(String.format("sendMessage to %s: %s", userName, JSON.toJSONString(message, true)));
@@ -1074,15 +1094,14 @@ public class Room {
             return null;
         }
     }
-    //TODO 是否能去掉
-    public ClientAction getLastClientAction(String userName){
-        Seat playerSeat = getSeatByUserName(userName);
-        if(playerSeat != null) {
-            return playerSeat.getLastAction();
-        }else{
-            return null;
-        }
-    }
+//    public ClientAction getLastClientAction(String userName){
+//        Seat playerSeat = getSeatByUserName(userName);
+//        if(playerSeat != null) {
+//            return playerSeat.getLastAction();
+//        }else{
+//            return null;
+//        }
+//    }
 
     private String getDisplayName(Card card){
         switch(card){
