@@ -68,12 +68,7 @@
                         $('#room_div').hide()
                         $('#room_id_number').prop('disabled', false)
                         //断开监听房间共有频道
-                        if(topicStomp != null){
-                            topicStomp.disconnect()
-                        }
-                        if(topicSock != null){
-                            topicSock.close()
-                        }
+                        closeTopic()
                     }else if (clientAction == 'SINGLE_WOLF_ACTION') {
                         enableDesktopCards()
                         enablePlayersWithoutSelf()
@@ -106,8 +101,7 @@
                     success: function (roomID) {
                         //更新创建的房间ID, 以便于后面用到房间参数时候可以从这里获取
                         $('#room_id_number').val(roomID)
-                        //加入房间
-                        joinRoom()
+                        subscribeRoom(true)
                     },
                     error: function (ex) {
                         console.log(ex)
@@ -117,7 +111,12 @@
 
             //确定加入已有房间
             $('#apply_join_button').click(function () {
-                joinRoom()
+                // console.log('before subscribe room...')
+                subscribeRoom(true)
+                // console.log('after subscribe room...')
+                // //加入房间
+                // ajaxGet('/onk/join/' + $('#room_id_number').val())
+                // console.log('after join room...')
             })
 
             $('#config_card_div > :checkbox').each(function(idx, element){
@@ -172,11 +171,11 @@
                 var url = '/onk/seat/' + roomID + '/' + $(this).attr('location')
                 ajaxGet(url)
             })
-            function joinRoom() {
+            function subscribeRoom(joinRoomAfterSubscribe) {
                 var roomID = $('#room_id_number').val()
+                //如果已经已经有订阅，那么先退订
+                closeTopic()
 
-                //加入房间
-                $('#room_id_span').html(roomID)
                 //订阅该房间的公共频道
                 var topicURL = '/topic/' + roomID
                 topicSock = new SockJS(endpointURL)
@@ -215,11 +214,24 @@
                             $('#messages_div').append('<div>' + xskrMessage.message + '</div>')
                         }
                     })
-                    //加入房间
-                    ajaxGet('/onk/join/' + roomID)
+                    console.log('Topic subscribed...')
+                    if(joinRoomAfterSubscribe){
+                        ajaxGet('/onk/join/' + roomID)
+                    }
                 })
             }
         })
+
+        function closeTopic(){
+            if(topicStomp != null){
+                topicStomp.disconnect(function(){
+                    console.log('Topic stomp disconnected...')
+                })
+            }
+            if(topicSock != null){
+                topicSock.close()
+            }
+        }
 
         function disableAll(){
             $('input').prop('disabled', true)
@@ -242,6 +254,7 @@
         }
 
         function refreshPlayerList(room) {
+            $('#room_id_span').html(room.id)
             $('#create_join_div').hide()
             $('#room_div').show()
 
@@ -312,13 +325,6 @@
                     seatDiv.css('background-color', 'lightgray')
                 }
             }
-        }
-
-        function disconnect() {
-            if (stompClient !== null) {
-                stompClient.disconnect()
-            }
-            console.log("Disconnected")
         }
 
         function ajaxGet(url) {

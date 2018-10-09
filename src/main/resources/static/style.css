@@ -1,0 +1,211 @@
+page{
+    position: fixed;
+    height: 100%;
+    width: 100%;
+
+    box-sizing: border-box;
+}
+
+#cardConfigView{
+    position: absolute;
+    left: 0.5%;
+    top: 0.5%;
+    width: 99%;
+    height: 16%;
+
+    display: flex;
+    flex-direction: column;
+
+    box-sizing: border-box;
+}
+
+#desktopView{
+    position: absolute;
+    top: 17%;
+    left: 0.5%;
+    width: 99%;
+    height: 74%;
+
+    display: flex;
+    flex-direction: row;
+}
+
+#buttonView{
+    position: absolute;
+    top: 90.5%;
+    left: 0.5%;
+    width: 99%;
+    height: 9%;
+
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cardConfigText{
+    display: flex;
+    flex-grow: 1;
+
+    justify-content: center;
+    align-items:center;
+}
+
+#cardConfigRow1View{
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+#cardConfigRow2View{
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.seatsView{
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+#centerView{
+    display: flex;
+    flex-grow: 5;
+    flex-direction: column;
+
+    margin-left: 1%;
+    margin-right: 1%;
+}
+
+#desktopCardsView{
+    position: relative;
+    left: 1%;
+    height: 23%;
+    width: 98%;
+
+    display: flex;
+    flex-direction: row;
+}
+
+#messageView{
+    position: relative;
+    left: 1.3%;
+    top: 1%;
+    height: 74.5%;
+    width: 96.5%;
+}
+
+.desktopCardView{
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: left;
+    align-items: top;
+
+    margin-left: 0.5%;
+    margin-right: 0.5%;
+
+    font-size: 1.5em;
+}
+
+.desktopCardNumberText{
+    display:flex;
+    flex-grow: 0;
+    justify-content:left;
+    color: lightgray;
+    margin-left: 5%;
+    font-size: 1em;
+}
+
+.desktopCardText{
+    display:flex;
+    flex-grow:1;
+    justify-content: center;
+    align-items: top;
+}
+
+.darkCard{
+    background-color: #E6E6E6;
+    color: black;
+}
+
+.lightCard{
+    background-color: #F2F2F2;
+    color: black;
+}
+
+.greenBorder{
+    border-style: solid;
+    border-width: 1px;
+    border-color: #7DCB88;
+}
+
+.grayBorder{
+    border-style: solid;
+    border-width: 1px;
+    border-color: #E2E2E2;
+}
+
+#exitButton{
+    background-color: #C1272D;
+}
+
+#aboutButton{
+    background-color: #4D4D4D;
+}
+
+#readyButton{
+    background-color: #39B54A;
+}
+
+.seatView{
+    display:flex;
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items:stretch;
+    box-sizing: border-box;
+
+    margin-bottom: 5%;
+}
+.seatInformationView{
+    display: flex;
+    flex-grow: 1;
+    flex-direction: row;
+    margin-left: 7%;
+    margin-top: 5%;
+}
+.seatNumberText{
+    display: flex;
+    flex-grow: 0;
+    justify-content: left;
+    align-items: flex-start;
+    font-size: 1.2em;
+}
+.seatCardView{
+    display: flex;
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+}
+
+.seatCardText{
+    flex-grow: 1;
+    justify-content: center;
+    font-size: 1.2em;
+    text-align: center;
+    display: table-cell;
+    vertical-align: middle;
+}
+.playerNameText{
+    display: flex;
+    flex-grow: 0;
+    font-size: 0.6em;
+    text-align: right;
+    align-items: flex-end;
+    justify-content: flex-end;
+    margin-right: 5%;
+}

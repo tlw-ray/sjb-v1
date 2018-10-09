@@ -547,7 +547,9 @@ public class Room {
                 }else{
                     Card card1 = desktopCards.get(seerCheckDesktopCard1);
                     Card card2 = desktopCards.get(seerCheckDesktopCard2);
-                    message = String.format("翻开桌上第%s和%s张卡牌，看到了%s和%s", seerCheckDesktopCard1, seerCheckDesktopCard2, card1, card2);
+                    String card1Name = getDisplayName(card1);
+                    String card2Name = getDisplayName(card2);
+                    message = String.format("翻开桌上第%s和%s张卡牌，看到了%s和%s", seerCheckDesktopCard1, seerCheckDesktopCard2, card1Name, card2Name);
                 }
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(seerSeat.getUserName(), xskrMessage);
@@ -560,7 +562,7 @@ public class Room {
                 player.setCard(robberSeat.getCard());
                 robberSeat.setCard(swapCard);
                 String message = String.format("交换了%s号玩家'%s'的身份牌%s。",
-                        getLocation(player), player.getUserName(), swapCard);
+                        getLocation(player), player.getUserName(), getDisplayName(swapCard));
                 XskrMessage xskrMessage = new XskrMessage(message, null, null);
                 sendMessage(robberSeat.getUserName(), xskrMessage);
                 keepKeyMessage(robberSeat, xskrMessage);
