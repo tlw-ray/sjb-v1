@@ -1,4 +1,4 @@
-package com.xskr.common;
+package com.xskr.onk_v1;
 
 import com.xskr.onk_v1.core.ClientAction;
 

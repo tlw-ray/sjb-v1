@@ -1,6 +1,6 @@
 package com.xskr.onk_v1.core;
 
-import com.xskr.common.XskrMessage;
+import com.xskr.onk_v1.XskrMessage;
 
 import java.util.ArrayList;
 import java.util.List;

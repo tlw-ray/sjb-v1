@@ -1,7 +1,7 @@
 package com.xskr.onk_v1.core;
 
 import com.alibaba.fastjson.JSON;
-import com.xskr.common.XskrMessage;
+import com.xskr.onk_v1.XskrMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

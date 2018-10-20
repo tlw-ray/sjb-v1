@@ -1,6 +1,5 @@
 package com.xskr.onk_v1;
 
-import com.xskr.common.WebUtil;
 import com.xskr.onk_v1.core.Card;
 import com.xskr.onk_v1.core.Room;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,10 +33,11 @@ public class ONKController{
      * 创建房间，需要传入该房间支持的角色列表
      * @return 房间静态信息, ID, 现有玩家清单, 座位数量等, 角色列表
      */
-    @RequestMapping(path = "/create", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public int createRoom(){
+    @RequestMapping(path = "/{user}/create", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public int createRoom(@PathVariable String user){
+        System.out.println(user);
         int roomID = RoomID_Generator++;
-        Room room = new Room(roomID, WebUtil.getCurrentUserName());
+        Room room = new Room(roomID, user);
         room.setSimpMessagingTemplate(simpMessagingTemplate);
         idRoomMap.put(roomID, room);
         return roomID;
@@ -48,23 +48,23 @@ public class ONKController{
      * @param roomID
      * @return
      */
-    @RequestMapping(path = "/join/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void pickJoin(@PathVariable int roomID){
-        String userName = WebUtil.getCurrentUserName();
+    @RequestMapping(path = "/{user}/join/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void pickJoin(@PathVariable String user, @PathVariable int roomID){
+//        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
         if(room != null){
-            room.join(userName);
+            room.join(user);
         }
     }
 
     /**
      * 玩家离开
      */
-    @RequestMapping(path = "/leave/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void pickLeave(@PathVariable int roomID){
-        String userName = WebUtil.getCurrentUserName();
+    @RequestMapping(path = "/{user}/leave/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void pickLeave(@PathVariable String user, @PathVariable int roomID){
+//        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.leave(userName);
+        room.leave(user);
     }
 
     /**
@@ -73,11 +73,11 @@ public class ONKController{
      * @param ready 是否准备
      * @return 服务端返回的该玩家准备状态
      */
-    @RequestMapping(path = "/ready/{roomID}/{ready}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void pickReady(@PathVariable int roomID, @PathVariable boolean ready){
-        String userName = WebUtil.getCurrentUserName();
+    @RequestMapping(path = "/{user}/ready/{roomID}/{ready}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void pickReady(@PathVariable String user, @PathVariable int roomID, @PathVariable boolean ready){
+//        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.setReady(userName, ready);
+        room.setReady(user, ready);
     }
 
     /**
@@ -85,22 +85,22 @@ public class ONKController{
      * @param roomID
      * @return
      */
-    @RequestMapping(path = "/getKeyMessages/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<String> getKeyMessages(@PathVariable int roomID){
-        String userName = WebUtil.getCurrentUserName();
+    @RequestMapping(path = "/{user}/getKeyMessages/{roomID}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<String> getKeyMessages(@PathVariable String user, @PathVariable int roomID){
+//        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        return room.getKeyMessages(userName);
+        return room.getKeyMessages(user);
     }
 
     /**
      * 玩家点击了桌上的一张牌
      * @return
      */
-    @RequestMapping(path = "/card/{roomID}/{cardID}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void pickCard(@PathVariable int roomID, @PathVariable int cardID){
-        String userName = WebUtil.getCurrentUserName();
+    @RequestMapping(path = "/{user}/card/{roomID}/{cardID}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void pickCard(@PathVariable String user, @PathVariable int roomID, @PathVariable int cardID){
+//        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.pickDesktopCard(userName, cardID);
+        room.pickDesktopCard(user, cardID);
     }
 
     /**
@@ -108,11 +108,11 @@ public class ONKController{
      * @param roomID
      * @param seat
      */
-    @RequestMapping(path = "/seat/{roomID}/{seat}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void pickSeat(@PathVariable int roomID, @PathVariable int seat){
-        String userName = WebUtil.getCurrentUserName();
+    @RequestMapping(path = "/{user}/seat/{roomID}/{seat}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void pickSeat(@PathVariable String user, @PathVariable int roomID, @PathVariable int seat){
+//        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        room.pickSeat(userName, seat);
+        room.pickSeat(user, seat);
     }
 
     /**
@@ -120,11 +120,11 @@ public class ONKController{
      * @param roomID
      * @param cards
      */
-    @RequestMapping(path = "/cards/{roomID}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
-    public void setUsedCards(@PathVariable int roomID, @RequestBody Card[] cards){
-        String userName = WebUtil.getCurrentUserName();
+    @RequestMapping(path = "/{user}/cards/{roomID}", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
+    public void setUsedCards(@PathVariable String user, @PathVariable int roomID, @RequestBody Card[] cards){
+//        String userName = WebUtil.getCurrentUserName();
         Room room = idRoomMap.get(roomID);
-        if(userName.equals(room.getOwner())){
+        if(user.equals(room.getOwner())){
             room.setCards(cards);
         }
     }
